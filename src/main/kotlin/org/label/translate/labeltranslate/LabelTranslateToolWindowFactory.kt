@@ -13,30 +13,32 @@ import java.awt.FlowLayout
 import java.awt.event.ActionEvent
 import java.awt.event.ItemEvent
 import java.awt.event.KeyEvent
-import java.util.*
 import javax.swing.*
 import javax.swing.table.DefaultTableModel
 import javax.swing.table.TableCellRenderer
 import javax.swing.table.TableModel
 import javax.swing.table.TableRowSorter
 
+data class PreviousState(val scrollPosition: Int, val errorFilter: Boolean)
+
 class LabelTranslateToolWindowFactory : ToolWindowFactory {
     override fun createToolWindowContent(project: Project, toolWindow: ToolWindow) {
         val translationSet = TranslationSet.loadFromPath(project.basePath)
 
         for (tab in translationSet) {
-            val toolWindowContent = LabelTranslateToolWindowContent(tab)
+            val toolWindowContent = LabelTranslateToolWindowContent(tab, project, toolWindow)
             val content = ContentFactory.getInstance().createContent(toolWindowContent.contentPanel, tab.displayName, false)
             toolWindow.contentManager.addContent(content)
         }
     }
 }
 
-class LabelTranslateToolWindowContent(private val translationSet: TranslationSet) {
+class LabelTranslateToolWindowContent(private val translationSet: TranslationSet, private val project: Project, private val toolWindow: ToolWindow, private val previousState: PreviousState? = null) {
     val contentPanel = JPanel()
     private val mutationObserver = MutationObserver()
     private var table: JBTable? = null
     private var sorter: TableRowSorter<TableModel>? = null
+    private var scrollPane: JBScrollPane? = null
 
     init {
         contentPanel.layout = BorderLayout()
@@ -68,6 +70,32 @@ class LabelTranslateToolWindowContent(private val translationSet: TranslationSet
         }
     }
 
+    private fun reloadTabsAndData() {
+        val previousScroll = scrollPane!!.verticalScrollBar.value
+        val previousState = PreviousState(previousScroll, true)
+        val previousDisplayName = toolWindow.contentManager.selectedContent?.displayName
+
+        toolWindow.contentManager.removeAllContents(true)
+
+        val translationSet = TranslationSet.loadFromPath(project.basePath)
+
+        for (tab in translationSet) {
+            val toolWindowContent = if (tab.displayName == previousDisplayName) {
+                LabelTranslateToolWindowContent(tab, project, toolWindow, previousState)
+            } else {
+                LabelTranslateToolWindowContent(tab, project, toolWindow)
+            }
+            val content = ContentFactory.getInstance().createContent(toolWindowContent.contentPanel, tab.displayName, false)
+            toolWindow.contentManager.addContent(content)
+        }
+
+        val contentBefore = toolWindow.contentManager.findContent(previousDisplayName)
+
+        contentBefore?.let {
+            toolWindow.contentManager.setSelectedContent(it)
+        }
+    }
+
     private fun createButtonPanel(table: JBTable): JPanel {
         val panel = JPanel()
         panel.layout = BorderLayout()
@@ -93,6 +121,9 @@ class LabelTranslateToolWindowContent(private val translationSet: TranslationSet
 
         // Refresh button
         val refreshButton = JButton("Refresh")
+        refreshButton.addActionListener {
+            reloadTabsAndData()
+        }
         buttonContainer.add(refreshButton)
 
         // Save button
@@ -100,6 +131,7 @@ class LabelTranslateToolWindowContent(private val translationSet: TranslationSet
         saveButton.addActionListener {
             val saveContext = SaveContext(translationSet, mutationObserver)
             saveContext.overwriteChanges()
+            reloadTabsAndData()
         }
         buttonContainer.add(saveButton)
 
@@ -108,7 +140,7 @@ class LabelTranslateToolWindowContent(private val translationSet: TranslationSet
         displayCheckbox.border = BorderFactory.createEmptyBorder(6, 0, 0, 0)
         displayCheckbox.addItemListener {
             if (it.stateChange == ItemEvent.SELECTED) {
-                getEmptyCellSorter(table.model)
+                getEmptyCellSorter()
             } else {
                 table.rowSorter = null
             }
@@ -119,7 +151,7 @@ class LabelTranslateToolWindowContent(private val translationSet: TranslationSet
         return panel
     }
 
-    private fun getEmptyCellSorter(model: TableModel) {
+    private fun getEmptyCellSorter() {
         // Sorter
         sorter?.rowFilter = object: RowFilter<TableModel, Any>() {
             override fun include(entry: Entry<out TableModel, out Any>?): Boolean {
@@ -152,7 +184,6 @@ class LabelTranslateToolWindowContent(private val translationSet: TranslationSet
                 } else {
                     mutationObserver.addMutation(key, it.column - 1, newValue)
                 }
-                println("Old value $oldValue, new value $newValue")
             }
         }
 
@@ -182,10 +213,13 @@ class LabelTranslateToolWindowContent(private val translationSet: TranslationSet
                 val key = table.getValueAt(table.selectedRow, 0) as String
                 if (DeleteDialogWrapper(key).showAndGet()) {
                     mutationObserver.addDeletion(key)
-                    println("Deleting...")
                 }
             }
         })
+
+        previousState?.scrollPosition?.let {
+            scrollPane?.verticalScrollBar?.value = it
+        }
 
         return table
     }
@@ -193,8 +227,8 @@ class LabelTranslateToolWindowContent(private val translationSet: TranslationSet
     private fun createTablePanel(table: JBTable): JPanel {
         val panel = JPanel()
         panel.layout = BorderLayout()
-        val pane = JBScrollPane(table)
-        panel.add(pane, BorderLayout.CENTER)
+        scrollPane = JBScrollPane(table)
+        panel.add(scrollPane!!, BorderLayout.CENTER)
 
         return panel
     }

@@ -13,8 +13,10 @@ data class TranslationSet(val displayName: String, val translationFiles: Collect
             translationFile.forEachLine {
                 val matchResults = KEY_VALUE_PAIR_REGEX.findAll(it)
                 if (matchResults.count() == 2) {
-                    val translationKey = matchResults.elementAt(0).groupValues[2]
-                    val translationValue = matchResults.elementAt(1).groupValues[2]
+                    var translationKey = matchResults.elementAt(0).value
+                    translationKey = parse(translationKey)
+                    var translationValue = matchResults.elementAt(1).value
+                    translationValue = parse(translationValue)
                     translationMap[translationKey] = translationValue
                 }
             }
@@ -22,6 +24,16 @@ data class TranslationSet(val displayName: String, val translationFiles: Collect
         }
 
         result
+    }
+
+    private fun parse(input: String): String {
+        // Remove quotation marks from regex obtained values
+        var result = input.substring(1, input.lastIndex)
+
+        // Unescape \' for visualisation. On save, they will be added again
+        result = result.replace("\\'", "'")
+
+        return result
     }
 
     fun getTranslationMap(lang: String): Map<String, String>? {
@@ -53,9 +65,27 @@ data class TranslationSet(val displayName: String, val translationFiles: Collect
     }
 
     companion object {
+        /*
+         * Location from root where we should look for resources / translation
+         * files.
+         */
         private const val RESOURCE_PATH = "resources/lang"
+
+        /*
+         * All files with this suffix and in the resource path, with exclusion of
+         * the EXCLUDED_LANGUAGE_FOLDERS will be parsed.
+         */
         private const val TRANSLATION_FILE_SUFFIX = ".php"
-        private val KEY_VALUE_PAIR_REGEX = Regex("(['\"])(.*?)\\1")
+
+        /*
+         * Regex that searches for everything between ' or ", ignoring \' and \".
+         * The match will include the quotation marks itself.
+         */
+        private val KEY_VALUE_PAIR_REGEX = Regex("""(['"])(?:(?<=\\)\1|.)*?(?<!\\)\1(?!=>)""")
+
+        /*
+         * Folders in which we don't look for translation files.
+         */
         private val EXCLUDED_LANGUAGE_FOLDERS = listOf("vendor")
 
         fun loadFromPath(project: String?): List<TranslationSet> {

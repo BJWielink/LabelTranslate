@@ -1,18 +1,17 @@
 package org.label.translate.labeltranslate
 
 import java.io.File
-import java.io.FileWriter
 
 class SaveContext(private val translationSet: TranslationSet, private val mutationObserver: MutationObserver) {
     fun overwriteChanges() {
         for ((col, language) in translationSet.listLanguages().withIndex()) {
             val file = translationSet.translationFiles.firstOrNull { it.parentFile.name == language } ?: continue
             val translationMap = translationSet.getTranslationMap(language) ?: continue
-            saveLanguage(col, file, language, translationMap)
+            saveLanguage(col, file, translationMap)
         }
     }
 
-    private fun saveLanguage(col: Int, translationFile: File, language: String, translationMap: Map<String, String>) {
+    private fun saveLanguage(col: Int, translationFile: File, translationMap: Map<String, String>) {
         if (mutationObserver.unchanged()) {
             return
         }
@@ -20,8 +19,6 @@ class SaveContext(private val translationSet: TranslationSet, private val mutati
         var mapToSave = HashMap(translationMap)
 
         val translationMutations = mutationObserver.getTranslationsForCol(col)
-        println("Catalog $translationFile with language $language")
-        println(translationMutations)
 
         // Add new translation and override existing ones
         for (translationMutation in translationMutations) {
@@ -41,7 +38,10 @@ class SaveContext(private val translationSet: TranslationSet, private val mutati
             it.newLine()
 
             for (entry in sortedMapToSave) {
-                it.write("    '${entry.key}' => '${entry.value}',")
+                val regex = Regex("(?<!\\\\)'")
+                val key = entry.key.replace(regex, "\\\\'") // Escape ' in the string
+                val value = entry.value.replace(regex, "\\\\'") // Escape ' in the string
+                it.write("    '${key}' => '${value}',")
                 it.newLine()
             }
 

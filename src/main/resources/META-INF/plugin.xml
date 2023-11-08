@@ -8,15 +8,25 @@
     <name>LabelTranslate</name>
 
     <!-- A displayed Vendor name or Organization ID displayed on the Plugins Page. -->
-    <vendor email="support@yourcompany.com" url="https://www.yourcompany.com">YourCompany</vendor>
+    <vendor email="bertjwielink@gmail.com" url="https://www.undefined.com">Bert Jan Wielink</vendor>
 
     <!-- Description of the plugin displayed on the Plugin Page and IDE Plugin Manager.
          Simple HTML elements (text formatting, paragraphs, and lists) can be added inside of <![CDATA[ ]]> tag.
          Guidelines: https://plugins.jetbrains.com/docs/marketplace/plugin-overview-page.html#plugin-description -->
-    <description><![CDATA[
-    Enter short description for your plugin here.<br>
-    <em>most HTML tags may be used</em>
-  ]]></description>
+    <description>
+        <![CDATA[
+            <strong>PHP Laravel Translation Plugin</strong>
+            <p>This plugin allows you to update translations of multiple
+            languages in a single window. Once a mutation is done, it will
+            display a preview. This preview can then be saved. The saved
+            result will be sorted alphabetically.</p>
+            <br />
+            <p>To use this plugin, simply press the newly added tab from the icons
+            on the right. It will look for translation in the default laravel
+            resource folder and display the translations in the side window.
+            This window can be expanded if so desired.</p>
+        ]]>
+    </description>
 
     <!-- Product and plugin compatibility requirements.
          Read more: https://plugins.jetbrains.com/docs/intellij/plugin-compatibility.html -->
@@ -25,6 +35,6 @@
     <!-- Extension points defined by the plugin.
          Read more: https://plugins.jetbrains.com/docs/intellij/plugin-extension-points.html -->
     <extensions defaultExtensionNs="com.intellij">
-        <toolWindow factoryClass="org.label.translate.labeltranslate.LabelTranslateToolWindowFactory" id="Label translate" anchor="right" />
+        <toolWindow factoryClass="org.label.translate.labeltranslate.LabelTranslateToolWindowFactory" id="Label translate" anchor="right" icon="/icons/pluginIcon.svg" />
     </extensions>
 </idea-plugin>
