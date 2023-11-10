@@ -142,7 +142,7 @@ class LabelTranslateToolWindowContent(private val translationSet: TranslationSet
             if (it.stateChange == ItemEvent.SELECTED) {
                 getEmptyCellSorter()
             } else {
-                table.rowSorter = null
+                sorter?.rowFilter = null
             }
         }
         checkboxContainer.add(displayCheckbox)
