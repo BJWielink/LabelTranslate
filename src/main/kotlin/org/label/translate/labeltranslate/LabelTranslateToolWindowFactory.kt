@@ -1,8 +1,13 @@
 package org.label.translate.labeltranslate
 
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.vfs.VirtualFileAdapter
+import com.intellij.openapi.vfs.VirtualFileEvent
+import com.intellij.openapi.vfs.VirtualFileListener
+import com.intellij.openapi.vfs.VirtualFileManager
 import com.intellij.openapi.wm.ToolWindow
 import com.intellij.openapi.wm.ToolWindowFactory
+import com.intellij.openapi.wm.ToolWindowManager
 import com.intellij.ui.components.JBCheckBox
 import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.content.ContentFactory
@@ -23,6 +28,9 @@ data class PreviousState(val scrollPosition: Int, val errorFilter: Boolean)
 
 class LabelTranslateToolWindowFactory : ToolWindowFactory {
     override fun createToolWindowContent(project: Project, toolWindow: ToolWindow) {
+        // Initialize file watcher
+        LangFileWatcher(project)
+
         val translationSet = TranslationSet.loadFromPath(project.basePath)
 
         for (tab in translationSet) {
@@ -32,6 +40,28 @@ class LabelTranslateToolWindowFactory : ToolWindowFactory {
         }
     }
 }
+
+class LangFileWatcher(private val project: Project) : VirtualFileAdapter() {
+    private val langFolder = project.baseDir?.findFileByRelativePath("resources/lang/nl")
+
+    init {
+        langFolder?.let {
+            VirtualFileManager.getInstance().addVirtualFileListener(object : VirtualFileListener {
+                override fun contentsChanged(event: VirtualFileEvent) {
+                    if (langFolder != null && event.file?.parent == langFolder) {
+                        // Reload tabs and data when a file is changed
+                        SwingUtilities.invokeLater {
+                            val toolWindow = ToolWindowManager.getInstance(project).getToolWindow("Label translate")
+                            toolWindow?.contentManager?.removeAllContents(true)
+                            LabelTranslateToolWindowFactory().createToolWindowContent(project, toolWindow!!)
+                        }
+                    }
+                }
+            }, project)
+        }
+    }
+}
+
 
 class LabelTranslateToolWindowContent(private val translationSet: TranslationSet, private val project: Project, private val toolWindow: ToolWindow, private val previousState: PreviousState? = null) {
     val contentPanel = JPanel()
