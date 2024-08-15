@@ -2,14 +2,16 @@ package org.label.translate.labeltranslate
 
 import com.intellij.util.containers.MultiMap
 import java.io.File
+import java.util.LinkedHashMap
+import java.util.SortedMap
 
 data class TranslationSet(val displayName: String, val translationFiles: Collection<File>) {
-    private val contentMap: HashMap<String, Map<String, String>> by lazy {
-        val result = HashMap<String, Map<String, String>>()
+    private val contentMap: SortedMap<String, LinkedHashMap<String, String>> by lazy {
+        val result = sortedMapOf<String, LinkedHashMap<String, String>>(compareBy { it.lowercase() })
 
         for (translationFile in translationFiles) {
             val languageKey = translationFile.parentFile.name
-            val translationMap = mutableMapOf<String, String>()
+            val translationMap = linkedMapOf<String, String>()
             translationFile.forEachLine {
                 val matchResults = KEY_VALUE_PAIR_REGEX.findAll(it)
                 if (matchResults.count() == 2) {
@@ -41,7 +43,7 @@ data class TranslationSet(val displayName: String, val translationFiles: Collect
     }
 
     fun listLanguages(): Array<String> {
-        return translationFiles.map { it.parentFile.name }.toTypedArray()
+        return contentMap.keys.toTypedArray()
     }
 
     fun listTranslationsFor(key: String): Array<String> {
@@ -105,7 +107,8 @@ data class TranslationSet(val displayName: String, val translationFiles: Collect
 
             val result = mutableListOf<TranslationSet>()
             for ((name, files) in translationMap.entrySet()) {
-                result.add(TranslationSet(name.capitalize(), files))
+                var sortedFiles = files.sortedBy { it.parentFile.name.lowercase() }
+                result.add(TranslationSet(name.capitalize(), sortedFiles))
             }
 
             return result
