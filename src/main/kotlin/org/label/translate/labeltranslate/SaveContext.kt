@@ -1,5 +1,6 @@
 package org.label.translate.labeltranslate
 
+import com.intellij.openapi.vfs.LocalFileSystem
 import java.io.File
 
 class SaveContext(private val translationSet: TranslationSet, private val mutationObserver: MutationObserver) {
@@ -48,5 +49,7 @@ class SaveContext(private val translationSet: TranslationSet, private val mutati
             it.write("];")
             it.newLine()
         }
+
+        LocalFileSystem.getInstance().refreshIoFiles(listOf(translationFile))
     }
 }
