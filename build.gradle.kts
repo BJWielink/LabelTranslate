@@ -5,7 +5,7 @@ plugins {
 }
 
 group = "org.label.translate"
-version = "1.4-SNAPSHOT"
+version = "1.5-SNAPSHOT"
 
 repositories {
     mavenCentral()
