@@ -71,7 +71,7 @@ data class TranslationSet(val displayName: String, val translationFiles: Collect
          * Location from root where we should look for resources / translation
          * files.
          */
-        private const val RESOURCE_PATH = "resources/lang"
+        private val RESOURCE_PATHS = listOf("resources/lang", "lang")
 
         /*
          * All files with this suffix and in the resource path, with exclusion of
@@ -90,12 +90,28 @@ data class TranslationSet(val displayName: String, val translationFiles: Collect
          */
         private val EXCLUDED_LANGUAGE_FOLDERS = listOf("vendor")
 
+        fun getResourcePath(project: String?): String {
+            if (project.isNullOrBlank()) {
+                return RESOURCE_PATHS[0]
+            }
+
+            for (resourcePath in RESOURCE_PATHS) {
+                val file = File(project, resourcePath)
+
+                if (file.exists()) {
+                    return resourcePath
+                }
+            }
+
+            return RESOURCE_PATHS[0]
+        }
+
         fun loadFromPath(project: String?): List<TranslationSet> {
             if (project == null) {
                 return listOf()
             }
 
-            val translationRoot = File(project, RESOURCE_PATH)
+            val translationRoot = File(project, getResourcePath(project))
             val languageFolders = translationRoot.listFiles { _, name -> name !in EXCLUDED_LANGUAGE_FOLDERS } ?: return listOf()
             val translationMap = MultiMap<String, File>()
             for (languageFolder in languageFolders) {
@@ -107,7 +123,7 @@ data class TranslationSet(val displayName: String, val translationFiles: Collect
 
             val result = mutableListOf<TranslationSet>()
             for ((name, files) in translationMap.entrySet()) {
-                var sortedFiles = files.sortedBy { it.parentFile.name.lowercase() }
+                val sortedFiles = files.sortedBy { it.parentFile.name.lowercase() }
                 result.add(TranslationSet(name.capitalize(), sortedFiles))
             }
 
