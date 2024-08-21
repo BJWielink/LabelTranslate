@@ -71,12 +71,28 @@ data class TranslationSet(val displayName: String, val translationFiles: Collect
         private val KEY_VALUE_PAIR_REGEX = Regex("""(['"])(?:(?<=\\)\1|.)*?(?<!\\)\1(?!=>)""")
         private val EXCLUDED_LANGUAGE_FOLDERS = listOf("vendor")
 
+        fun getResourcePath(project: String?): String {
+            if (project.isNullOrBlank()) {
+                return RESOURCE_PATHS[0]
+            }
+
+            for (resourcePath in RESOURCE_PATHS) {
+                val file = File(project, resourcePath)
+
+                if (file.exists()) {
+                    return resourcePath
+                }
+            }
+
+            return RESOURCE_PATHS[0]
+        }
+
         fun loadFromPath(project: String?): List<TranslationSet> {
             if (project == null) {
                 return listOf()
             }
 
-            val translationRoot = File(project, RESOURCE_PATH)
+            val translationRoot = File(project, getResourcePath(project))
             val languageFolders = translationRoot.listFiles { _, name -> name !in EXCLUDED_LANGUAGE_FOLDERS } ?: return listOf()
             val translationMap = MultiMap<String, File>()
             for (languageFolder in languageFolders) {
@@ -88,7 +104,7 @@ data class TranslationSet(val displayName: String, val translationFiles: Collect
 
             val result = mutableListOf<TranslationSet>()
             for ((name, files) in translationMap.entrySet()) {
-                var sortedFiles = files.sortedBy { it.parentFile.name.toLowerCase() }
+                val sortedFiles = files.sortedBy { it.parentFile.name.toLowerCase() }
                 result.add(TranslationSet(name.capitalize(), sortedFiles))
             }
 
