@@ -121,6 +121,18 @@ class LabelTranslateToolWindowContent(
         val checkboxContainer = JPanel(FlowLayout(FlowLayout.CENTER))
         panel.add(checkboxContainer, BorderLayout.EAST)
 
+        // Search Field
+        val searchField = JTextField(15)
+        searchField.toolTipText = "Search by key or translation"
+        searchField.addKeyListener(object : java.awt.event.KeyAdapter() {
+            override fun keyReleased(e: KeyEvent) {
+                val searchText = searchField.text.trim().toLowerCase()
+                applyTableFilter(searchText)
+            }
+        })
+        buttonContainer.add(JLabel("Search: "))
+        buttonContainer.add(searchField)
+
         // Add button
         val addButton = JButton("Add")
         addButton.addActionListener {
@@ -146,7 +158,7 @@ class LabelTranslateToolWindowContent(
         saveButton.addActionListener {
             try {
                 val saveContext = SaveContext(translationSet, mutationObserver)
-                saveContext.overwriteChanges()  // This should check all mutations, including those added programmatically
+                saveContext.overwriteChanges()
                 reloadTabsAndData()
             } catch (e: Exception) {
                 JOptionPane.showMessageDialog(null, "Error during save: ${e.message}")
@@ -155,24 +167,21 @@ class LabelTranslateToolWindowContent(
         }
         buttonContainer.add(saveButton)
 
-
+        // Translate button
         val translateButton = JButton("Translate")
-        // In the `TranslateDialogWrapper` action
         translateButton.addActionListener {
             val translateDialog = TranslateDialogWrapper()
             if (translateDialog.showAndGet()) {
                 val key = translateDialog.keyField?.text ?: ""
                 val dutchWord = translateDialog.dutchWordField?.text ?: ""
                 if (key.isNotBlank() && dutchWord.isNotBlank()) {
-                    // Call the translation function
                     translateWord(key, dutchWord, table.model as DefaultTableModel, mutationObserver)
                 }
             }
         }
-
         buttonContainer.add(translateButton)
 
-        // Display button
+        // Display checkbox for errors
         val displayCheckbox = JBCheckBox("Errors")
         displayCheckbox.border = BorderFactory.createEmptyBorder(6, 0, 0, 0)
         displayCheckbox.addItemListener {
@@ -186,6 +195,24 @@ class LabelTranslateToolWindowContent(
         checkboxContainer.add(Box.createRigidArea(Dimension(10, 0)))
 
         return panel
+    }
+
+    private fun applyTableFilter(searchText: String) {
+        sorter?.rowFilter = if (searchText.isBlank()) {
+            null // Clear the filter if the search text is empty
+        } else {
+            object : RowFilter<TableModel, Int>() {
+                override fun include(entry: Entry<out TableModel, out Int>): Boolean {
+                    // Check if any column contains the search text
+                    for (i in 0 until entry.valueCount) {
+                        if (entry.getStringValue(i).toLowerCase().contains(searchText)) {
+                            return true
+                        }
+                    }
+                    return false
+                }
+            }
+        }
     }
 
     private val apiToken = ""
@@ -205,8 +232,8 @@ class LabelTranslateToolWindowContent(
         // Construct the JSON request dynamically based on these languages
         val languagesJson = languages.joinToString(", ") { "\\\"$it\\\": {\\\"$key\\\": \\\"translation\\\"}" }
         val jsonContent = """
-        Translate the Dutch word \"$dutchWord\" into the following languages: ${languages.joinToString(", ")}. 
-        Use this as a key \"$key\". Please return the translations in the following structured JSON format: {$languagesJson} 
+        Translate the Dutch word \"$dutchWord\" into the following languages: ${languages.joinToString(", ")}.
+        Use this as a key \"$key\". Please return the translations in the following structured JSON format: {$languagesJson}
         and only return that, not other text.
     """.trimIndent().replace("\n", " ")
 
@@ -281,50 +308,26 @@ class LabelTranslateToolWindowContent(
                                 for (col in 0 until tableModel.columnCount) {
                                     val columnName = tableModel.getColumnName(col).toUpperCase()
 
+                                    println("Processing column: $columnName")
+
                                     when {
                                         columnName == "KEY" -> rowArray[col] = key
                                         columnName == "NL" -> rowArray[col] = dutchWord
                                         parsedJson.has(columnName) -> {
                                             rowArray[col] = parsedJson[columnName].asJsonObject[key].asString
+                                            println("Added translation for $columnName: ${rowArray[col]}")
                                         }
                                     }
                                 }
 
-                                // Add the row to the table model
+                                // Add the row to the table
                                 tableModel.addRow(rowArray)
 
-                                // Notify the table model of the change
-                                val lastRow = tableModel.rowCount - 1
-                                tableModel.fireTableRowsInserted(lastRow, lastRow)
-
-                                // Explicitly mark these cells as mutated
-                                for (col in 1 until tableModel.columnCount) {
-                                    if (rowArray[col] != null) {
-                                        mutationObserver.addMutation(key, col - 1, rowArray[col] as String)
-                                    }
-                                }
-
-                                // Scroll to the new record if within bounds
-                                if (lastRow >= 0 && lastRow < tableModel.rowCount) {
-                                    val cellRect = table?.getCellRect(lastRow, 0, true)
-                                    table?.scrollRectToVisible(cellRect)
-                                } else {
-                                    println("Error: lastRow index ($lastRow) is out of bounds for scrolling.")
-                                }
-
-                                // ** Reset and update the sorter after modifying the table model **
-                                sorter?.modelStructureChanged()
-
-                            } catch (e: ArrayIndexOutOfBoundsException) {
-                                // Specific catch for ArrayIndexOutOfBoundsException
-                                JOptionPane.showMessageDialog(null, "Index error: ${e.message}")
-                                e.printStackTrace()
-                            } catch (e: NullPointerException) {
-                                // Specific catch for NullPointerException
-                                JOptionPane.showMessageDialog(null, "Null pointer error: ${e.message}")
-                                e.printStackTrace()
+                                // Scroll to the new record
+                                val index = tableModel.rowCount - 1
+                                val cellRect = table?.getCellRect(index, 0, true)
+                                table?.scrollRectToVisible(cellRect)
                             } catch (e: Exception) {
-                                // General catch for any other exceptions
                                 JOptionPane.showMessageDialog(null, "Error updating table: ${e.message}")
                                 e.printStackTrace()
                             }
