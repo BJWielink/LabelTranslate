@@ -106,6 +106,18 @@ class LabelTranslateToolWindowContent(private val translationSet: TranslationSet
         val checkboxContainer = JPanel(FlowLayout(FlowLayout.CENTER))
         panel.add(checkboxContainer, BorderLayout.EAST)
 
+        // Add search field for filtering
+        val searchField = JTextField(15)
+        searchField.toolTipText = "Search by key or translation"
+        searchField.addKeyListener(object : java.awt.event.KeyAdapter() {
+            override fun keyReleased(e: KeyEvent) {
+                val searchText = searchField.text.trim().toLowerCase()
+                applyTableFilter(searchText)
+            }
+        })
+        buttonContainer.add(JLabel("Search: "))
+        buttonContainer.add(searchField)
+
         // Add button
         val addButton = JButton("Add")
         addButton.addActionListener {
@@ -135,7 +147,7 @@ class LabelTranslateToolWindowContent(private val translationSet: TranslationSet
         }
         buttonContainer.add(saveButton)
 
-        // Display button
+        // Display button for errors
         val displayCheckbox = JBCheckBox("Errors")
         displayCheckbox.border = BorderFactory.createEmptyBorder(6, 0, 0, 0)
         displayCheckbox.addItemListener {
@@ -149,6 +161,24 @@ class LabelTranslateToolWindowContent(private val translationSet: TranslationSet
         checkboxContainer.add(Box.createRigidArea(Dimension(10, 0)))
 
         return panel
+    }
+
+    private fun applyTableFilter(searchText: String) {
+        sorter?.rowFilter = if (searchText.isBlank()) {
+            null // Clear the filter if the search text is empty
+        } else {
+            object : RowFilter<TableModel, Int>() {
+                override fun include(entry: Entry<out TableModel, out Int>): Boolean {
+                    // Check if any column contains the search text (case-insensitive)
+                    for (i in 0 until entry.valueCount) {
+                        if (entry.getStringValue(i).toLowerCase().contains(searchText)) {
+                            return true
+                        }
+                    }
+                    return false
+                }
+            }
+        }
     }
 
     private fun getEmptyCellSorter() {
