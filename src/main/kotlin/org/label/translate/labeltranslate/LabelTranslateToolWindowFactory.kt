@@ -1,5 +1,6 @@
 package org.label.translate.labeltranslate
 
+import com.google.gson.JsonParser
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.wm.ToolWindow
 import com.intellij.openapi.wm.ToolWindowFactory
@@ -7,12 +8,19 @@ import com.intellij.ui.components.JBCheckBox
 import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.content.ContentFactory
 import com.intellij.ui.table.JBTable
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody
+import okhttp3.RequestBody.Companion.toRequestBody
+import okhttp3.Response
 import java.awt.BorderLayout
 import java.awt.Dimension
 import java.awt.FlowLayout
 import java.awt.event.ActionEvent
 import java.awt.event.ItemEvent
 import java.awt.event.KeyEvent
+import java.io.IOException
 import javax.swing.*
 import javax.swing.table.DefaultTableModel
 import javax.swing.table.TableCellRenderer
@@ -171,7 +179,10 @@ class LabelTranslateToolWindowContent(
                 }
             }
         }
-        buttonContainer.add(translateButton)
+
+        if(useApiKey() != "false") {
+            buttonContainer.add(translateButton)
+        }
 
         // Display checkbox for errors
         val displayCheckbox = JBCheckBox("Errors")
@@ -207,9 +218,23 @@ class LabelTranslateToolWindowContent(
         }
     }
 
-    private val apiToken = ""
+    fun useApiKey(): String {
+        val apiKeyConfig = ApiKeyConfig()
+        val apiKey = apiKeyConfig.apiKey // Access the API key
 
-    fun translateWord(key: String, dutchWord: String, tableModel: DefaultTableModel, mutationObserver: MutationObserver) {
+        if (!apiKey.isNotEmpty()) {
+            return "false"
+        }
+
+        return apiKey
+    }
+
+    fun translateWord(
+        key: String,
+        dutchWord: String,
+        tableModel: DefaultTableModel,
+        mutationObserver: MutationObserver
+    ) {
         val client = OkHttpClient()
 
         // Identify languages present in the table
@@ -241,10 +266,6 @@ class LabelTranslateToolWindowContent(
         }
     """.trimIndent()
 
-        // Log the JSON payload to the console
-        println("JSON Payload:")
-        println(json)
-
         // Convert JSON string to RequestBody
         val requestBody: RequestBody = json.toRequestBody("application/json".toMediaTypeOrNull())
 
@@ -252,7 +273,7 @@ class LabelTranslateToolWindowContent(
         val request = Request.Builder()
             .url("https://api.openai.com/v1/chat/completions")
             .post(requestBody)
-            .addHeader("Authorization", "Bearer $apiToken")
+            .addHeader("Authorization", "Bearer ${useApiKey()}")
             .addHeader("Content-Type", "application/json")
             .build()
 
@@ -270,7 +291,10 @@ class LabelTranslateToolWindowContent(
                         println("Response body: $responseBody")
 
                         if (!response.isSuccessful) {
-                            JOptionPane.showMessageDialog(null, "Unexpected response code: ${response.code}\nResponse: $responseBody")
+                            JOptionPane.showMessageDialog(
+                                null,
+                                "Unexpected response code: ${response.code}\nResponse: $responseBody"
+                            )
                             return
                         }
 
@@ -279,8 +303,8 @@ class LabelTranslateToolWindowContent(
                         val jsonObject = jsonElement.asJsonObject
 
                         // Access the nested content field
-                        val content = jsonObject["choices"].asJsonArray[0].asJsonObject["message"].asJsonObject["content"].asString
-                        println("Content: $content")
+                        val content =
+                            jsonObject["choices"].asJsonArray[0].asJsonObject["message"].asJsonObject["content"].asString
 
                         // Clean the content if needed (e.g., strip backticks or extraneous text)
                         val cleanedContent = content.trim().removePrefix("```json").removeSuffix("```").trim()
@@ -300,14 +324,11 @@ class LabelTranslateToolWindowContent(
                                 for (col in 0 until tableModel.columnCount) {
                                     val columnName = tableModel.getColumnName(col).toUpperCase()
 
-                                    println("Processing column: $columnName")
-
                                     when {
                                         columnName == "KEY" -> rowArray[col] = key
                                         columnName == "NL" -> rowArray[col] = dutchWord
                                         parsedJson.has(columnName) -> {
                                             rowArray[col] = parsedJson[columnName].asJsonObject[key].asString
-                                            println("Added translation for $columnName: ${rowArray[col]}")
                                         }
                                     }
                                 }
@@ -315,9 +336,22 @@ class LabelTranslateToolWindowContent(
                                 // Add the row to the table
                                 tableModel.addRow(rowArray)
 
-                                // Scroll to the new record
-                                val index = tableModel.rowCount - 1
-                                val cellRect = table?.getCellRect(index, 0, true)
+                                // Get the key from the newly added row
+                                val newKey = key // Assuming `key` is the value you added
+
+                                // Determine the correct index based on sorting
+                                val newIndex = (0 until tableModel.rowCount).firstOrNull {
+                                    val existingKey =
+                                        tableModel.getValueAt(it, 0) // Assuming "KEY" is in the first column
+                                    existingKey.toString() >= newKey
+                                } ?: tableModel.rowCount // If not found, it goes to the end
+
+                                //todo make this dynamic
+                                mutationObserver.addMutation(key, 0, rowArray.get(1) as String)
+                                mutationObserver.addMutation(key, 1, rowArray.get(2) as String)
+                                mutationObserver.addMutation(key, 2, rowArray.get(3) as String)
+
+                                val cellRect = table?.getCellRect(newIndex, 0, true)
                                 table?.scrollRectToVisible(cellRect)
                             } catch (e: Exception) {
                                 JOptionPane.showMessageDialog(null, "Error updating table: ${e.message}")
@@ -358,14 +392,7 @@ class LabelTranslateToolWindowContent(
         val tableModel = DefaultTableModel(keys, arrayOf("Key", *translationSet.listLanguages()))
         tableModel.addTableModelListener {
             if (it.column > 0) { // Skip new row added
-                val key = tableModel.getValueAt(it.firstRow, 0) as String
-                val oldValue = translationSet.listTranslationsFor(key)[it.column - 1]
-                val newValue = tableModel.getValueAt(it.firstRow, it.column) as String
-                if (oldValue == newValue) {
-                    mutationObserver.removeIndex(key, it.column - 1)
-                } else {
-                    mutationObserver.addMutation(key, it.column - 1, newValue)
-                }
+                handleEvent(tableModel, it.firstRow, it.column)
             }
         }
 
