@@ -66,7 +66,16 @@ data class TranslationSet(val displayName: String, val translationFiles: Collect
     }
 
     companion object {
-        private const val RESOURCE_PATH = "resources/lang"
+        /*
+         * Location from root where we should look for resources / translation
+         * files.
+         */
+        private val RESOURCE_PATHS = listOf("resources/lang", "lang")
+
+        /*
+         * All files with this suffix and in the resource path, with exclusion of
+         * the EXCLUDED_LANGUAGE_FOLDERS will be parsed.
+         */
         private const val TRANSLATION_FILE_SUFFIX = ".php"
         private val KEY_VALUE_PAIR_REGEX = Regex("""(['"])(?:(?<=\\)\1|.)*?(?<!\\)\1(?!=>)""")
         private val EXCLUDED_LANGUAGE_FOLDERS = listOf("vendor")

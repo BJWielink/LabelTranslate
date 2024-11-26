@@ -32,7 +32,6 @@ data class PreviousState(val scrollPosition: Int, val errorFilter: Boolean)
 class LabelTranslateToolWindowFactory : ToolWindowFactory {
     override fun createToolWindowContent(project: Project, toolWindow: ToolWindow) {
         val translationSet = TranslationSet.loadFromPath(project.basePath)
-
         for (tab in translationSet) {
             val toolWindowContent = LabelTranslateToolWindowContent(tab, project, toolWindow)
             val content =
@@ -105,7 +104,6 @@ class LabelTranslateToolWindowContent(
         }
 
         val contentBefore = toolWindow.contentManager.findContent(previousDisplayName)
-
         contentBefore?.let {
             toolWindow.contentManager.setSelectedContent(it)
         }
@@ -287,8 +285,6 @@ class LabelTranslateToolWindowContent(
                 response.use {
                     try {
                         val responseBody = response.body?.string() ?: ""
-                        println("Response code: ${response.code}")
-                        println("Response body: $responseBody")
 
                         if (!response.isSuccessful) {
                             JOptionPane.showMessageDialog(
@@ -383,6 +379,17 @@ class LabelTranslateToolWindowContent(
 
                 return false
             }
+        }
+    }
+
+    private fun handleEvent(tableModel: DefaultTableModel, row: Int, column: Int) {
+        val key = tableModel.getValueAt(row, 0) as String
+        val oldValue = translationSet.listTranslationsFor(key)[column - 1]
+        val newValue = tableModel.getValueAt(row, column) as String
+        if (oldValue == newValue) {
+            mutationObserver.removeIndex(key, column - 1)
+        } else {
+            mutationObserver.addMutation(key, column - 1, newValue)
         }
     }
 
