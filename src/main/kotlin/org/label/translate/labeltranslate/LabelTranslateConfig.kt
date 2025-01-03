@@ -16,5 +16,10 @@ class CustomFilePathConfig {
 }
 
 class DefaultLanguage {
-    var defaultLanguage: String = ""
+    private val properties = PropertiesComponent.getInstance()
+    var defaultLanguage: String
+        get() = properties.getValue("label_translate.default_language", "") // Default is an empty string if not found
+        set(value) {
+            properties.setValue("label_translate.default_language", value)
+        }
 }

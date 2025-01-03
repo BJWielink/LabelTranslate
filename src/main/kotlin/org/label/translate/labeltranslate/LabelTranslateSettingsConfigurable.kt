@@ -3,44 +3,57 @@ package org.label.translate.labeltranslate
 import com.intellij.openapi.options.Configurable
 import javax.swing.*
 
-class ApiKeySettingsConfigurable : Configurable {
+class LabelTranslateSettingsConfigurable : Configurable {
     private lateinit var apiKeyField: JTextField
-    private lateinit var apiKeyConfig: ApiKeyConfig // Declare it as a class property
+    private lateinit var apiKeyConfig: ApiKeyConfig
+    private lateinit var languageComboBox: JComboBox<String>
+    private lateinit var defaultLanguage: DefaultLanguage // To manage the default language
 
     override fun createComponent(): JComponent? {
-        apiKeyConfig = ApiKeyConfig() // Initialize the ApiKeyConfig here
+        apiKeyConfig = ApiKeyConfig() // Initialize the ApiKeyConfig
+        defaultLanguage = DefaultLanguage() // Initialize DefaultLanguage
 
         val panel = JPanel()
         panel.layout = BoxLayout(panel, BoxLayout.Y_AXIS)
 
         // API Key Field
         panel.add(JLabel("API Key:"))
-
-        apiKeyField = JTextField(apiKeyConfig.apiKey, 20) // Set initial text from config and columns for field width
-        apiKeyField.maximumSize = java.awt.Dimension(300, 30) // Set max size for the field (300px width)
-        apiKeyField.preferredSize = java.awt.Dimension(300, 30) // Set preferred size to control field width
-
-        // Ensuring that the field doesn't expand further than necessary
+        apiKeyField = JTextField(apiKeyConfig.apiKey, 20)
+        apiKeyField.maximumSize = java.awt.Dimension(300, 30)
+        apiKeyField.preferredSize = java.awt.Dimension(300, 30)
         apiKeyField.minimumSize = java.awt.Dimension(100, 30)
-
         panel.add(apiKeyField)
+
+        // Language Dropdown
+        panel.add(JLabel("Default Language:"))
+        val languages = listOf("English", "Spanish", "French", "German", "Chinese") // Example languages
+        languageComboBox = JComboBox(languages.toTypedArray())
+
+        languageComboBox.maximumSize = java.awt.Dimension(300, 30)
+        languageComboBox.preferredSize = java.awt.Dimension(300, 30)
+        languageComboBox.minimumSize = java.awt.Dimension(100, 30)
+
+        languageComboBox.selectedItem = defaultLanguage.defaultLanguage.ifEmpty { "English" } // Default to "English" if no language is set
+        panel.add(languageComboBox)
 
         return panel
     }
 
     override fun isModified(): Boolean {
-        // Compare current text field content with config value
-        return apiKeyField.text != apiKeyConfig.apiKey
+        // Check if either the API key or the selected language has been modified
+        return apiKeyField.text != apiKeyConfig.apiKey || languageComboBox.selectedItem != defaultLanguage.defaultLanguage
     }
 
     override fun apply() {
-        // Save current text in the config
+        // Save the current API key and selected language
         apiKeyConfig.apiKey = apiKeyField.text
+        defaultLanguage.defaultLanguage = languageComboBox.selectedItem.toString()
     }
 
     override fun reset() {
-        // Reset field to the config value
+        // Reset the API key field and language combo box to their stored values
         apiKeyField.text = apiKeyConfig.apiKey
+        languageComboBox.selectedItem = defaultLanguage.defaultLanguage.ifEmpty { "English" }
     }
 
     override fun getDisplayName(): String {
