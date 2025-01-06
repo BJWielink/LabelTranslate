@@ -119,6 +119,7 @@ class LabelTranslateToolWindowContent(
         val checkboxContainer = JPanel(FlowLayout(FlowLayout.CENTER))
         panel.add(checkboxContainer, BorderLayout.EAST)
 
+        //todo doesn't work with the "error" checkbox
         // Search Field
         val searchField = JTextField(15)
         searchField.toolTipText = "Search by key or translation"
@@ -171,9 +172,9 @@ class LabelTranslateToolWindowContent(
             val translateDialog = TranslateDialogWrapper()
             if (translateDialog.showAndGet()) {
                 val key = translateDialog.keyField?.text ?: ""
-                val dutchWord = translateDialog.dutchWordField?.text ?: ""
-                if (key.isNotBlank() && dutchWord.isNotBlank()) {
-                    translateWord(key, dutchWord, table.model as DefaultTableModel, mutationObserver)
+                val wordToTranslate = translateDialog.wordToTranslateField?.text ?: ""
+                if (key.isNotBlank() && wordToTranslate.isNotBlank()) {
+                    translateWord(key, wordToTranslate, table.model as DefaultTableModel, mutationObserver)
                 }
             }
         }
@@ -214,153 +215,6 @@ class LabelTranslateToolWindowContent(
                 }
             }
         }
-    }
-
-    fun useApiKey(): String {
-        val apiKeyConfig = ApiKeyConfig()
-        val apiKey = apiKeyConfig.apiKey // Access the API key
-
-        if (!apiKey.isNotEmpty()) {
-            return "false"
-        }
-
-        return apiKey
-    }
-
-    fun translateWord(
-        key: String,
-        dutchWord: String,
-        tableModel: DefaultTableModel,
-        mutationObserver: MutationObserver
-    ) {
-        val client = OkHttpClient()
-
-        // Identify languages present in the table
-        val languages = mutableListOf<String>()
-        for (col in 0 until tableModel.columnCount) {
-            val columnName = tableModel.getColumnName(col).toUpperCase()
-            if (columnName != "KEY" && columnName != "NL") {
-                languages.add(columnName)
-            }
-        }
-
-        // Construct the JSON request dynamically based on these languages
-        val languagesJson = languages.joinToString(", ") { "\\\"$it\\\": {\\\"$key\\\": \\\"translation\\\"}" }
-        val jsonContent = """
-        Translate the Dutch word \"$dutchWord\" into the following languages: ${languages.joinToString(", ")}.
-        Use this as a key \"$key\". Please return the translations in the following structured JSON format: {$languagesJson}
-        and only return that, not other text.
-    """.trimIndent().replace("\n", " ")
-
-        // Construct the JSON payload
-        val json = """
-        {
-            "model": "gpt-4o-mini",
-            "messages": [
-                {"role": "system", "content": "You are a helpful assistant."},
-                {"role": "user", "content": "$jsonContent"}
-            ],
-            "max_tokens": 50
-        }
-    """.trimIndent()
-
-        // Convert JSON string to RequestBody
-        val requestBody: RequestBody = json.toRequestBody("application/json".toMediaTypeOrNull())
-
-        // Create the request
-        val request = Request.Builder()
-            .url("https://api.openai.com/v1/chat/completions")
-            .post(requestBody)
-            .addHeader("Authorization", "Bearer ${useApiKey()}")
-            .addHeader("Content-Type", "application/json")
-            .build()
-
-        // Send the request
-        client.newCall(request).enqueue(object : okhttp3.Callback {
-            override fun onFailure(call: okhttp3.Call, e: IOException) {
-                JOptionPane.showMessageDialog(null, "Error during translation: ${e.message}")
-            }
-
-            override fun onResponse(call: okhttp3.Call, response: Response) {
-                response.use {
-                    try {
-                        val responseBody = response.body?.string() ?: ""
-
-                        if (!response.isSuccessful) {
-                            JOptionPane.showMessageDialog(
-                                null,
-                                "Unexpected response code: ${response.code}\nResponse: $responseBody"
-                            )
-                            return
-                        }
-
-                        // Parse the JSON response using Gson
-                        val jsonElement = JsonParser.parseString(responseBody)
-                        val jsonObject = jsonElement.asJsonObject
-
-                        // Access the nested content field
-                        val content =
-                            jsonObject["choices"].asJsonArray[0].asJsonObject["message"].asJsonObject["content"].asString
-
-                        // Clean the content if needed (e.g., strip backticks or extraneous text)
-                        val cleanedContent = content.trim().removePrefix("```json").removeSuffix("```").trim()
-
-                        // Parse the cleaned content as JSON
-                        val parsedJson = JsonParser.parseString(cleanedContent).asJsonObject
-
-                        // Prepare to add the key and translations to the table
-                        SwingUtilities.invokeLater {
-                            try {
-                                mutationObserver.addRowMutation(key)
-
-                                // Create a row array with nulls to represent all columns
-                                val rowArray = arrayOfNulls<Any>(tableModel.columnCount)
-
-                                // Fill the array with the correct translations in the correct columns
-                                for (col in 0 until tableModel.columnCount) {
-                                    val columnName = tableModel.getColumnName(col).toUpperCase()
-
-                                    when {
-                                        columnName == "KEY" -> rowArray[col] = key
-                                        columnName == "NL" -> rowArray[col] = dutchWord
-                                        parsedJson.has(columnName) -> {
-                                            rowArray[col] = parsedJson[columnName].asJsonObject[key].asString
-                                        }
-                                    }
-                                }
-
-                                // Add the row to the table
-                                tableModel.addRow(rowArray)
-
-                                // Get the key from the newly added row
-                                val newKey = key // Assuming `key` is the value you added
-
-                                // Determine the correct index based on sorting
-                                val newIndex = (0 until tableModel.rowCount).firstOrNull {
-                                    val existingKey =
-                                        tableModel.getValueAt(it, 0) // Assuming "KEY" is in the first column
-                                    existingKey.toString() >= newKey
-                                } ?: tableModel.rowCount // If not found, it goes to the end
-
-                                //todo make this dynamic
-                                mutationObserver.addMutation(key, 0, rowArray.get(1) as String)
-                                mutationObserver.addMutation(key, 1, rowArray.get(2) as String)
-                                mutationObserver.addMutation(key, 2, rowArray.get(3) as String)
-
-                                val cellRect = table?.getCellRect(newIndex, 0, true)
-                                table?.scrollRectToVisible(cellRect)
-                            } catch (e: Exception) {
-                                JOptionPane.showMessageDialog(null, "Error updating table: ${e.message}")
-                                e.printStackTrace()
-                            }
-                        }
-                    } catch (e: Exception) {
-                        JOptionPane.showMessageDialog(null, "Error processing response: ${e.message}")
-                        e.printStackTrace()
-                    }
-                }
-            }
-        })
     }
 
     private fun getEmptyCellSorter() {
@@ -447,5 +301,157 @@ class LabelTranslateToolWindowContent(
         panel.add(scrollPane!!, BorderLayout.CENTER)
 
         return panel
+    }
+
+    fun getDefaultLang(): String {
+        return DefaultLanguage().defaultLanguage
+    }
+
+    fun useApiKey(): String {
+        val apiKeyConfig = ApiKeyConfig()
+        val apiKey = apiKeyConfig.apiKey // Access the API key
+
+        if (apiKey.isEmpty()) {
+            return "false"
+        }
+
+        return apiKey
+    }
+
+    fun translateWord(
+        key: String,
+        wordToTranslate: String,
+        tableModel: DefaultTableModel,
+        mutationObserver: MutationObserver
+    ) {
+        val client = OkHttpClient()
+
+        // Identify languages present in the table
+        val languages = mutableListOf<String>()
+        val totalLanguage = tableModel.columnCount - 1
+        for (col in 0 until tableModel.columnCount) {
+            val columnName = tableModel.getColumnName(col).toUpperCase()
+            if (columnName != "KEY" && columnName != getDefaultLang()) {
+                languages.add(columnName)
+            }
+        }
+
+        // Construct the JSON request dynamically based on these languages
+        val languagesJson = languages.joinToString(", ") { "\\\"$it\\\": {\\\"$key\\\": \\\"translation\\\"}" }
+        val jsonContent = """
+        Translate the \"${getDefaultLang()}\" word/sentence \"$wordToTranslate\" into the following languages: ${languages.joinToString(", ")}.
+        Use this as a key \"$key\". Please return the translations in the following structured JSON format: {$languagesJson}
+        and only return that, not other text.
+    """.trimIndent().replace("\n", " ")
+
+        //todo make max_tokens a setting
+        // Construct the JSON payload
+        val json = """
+        {
+            "model": "gpt-4o-mini",
+            "messages": [
+                {"role": "system", "content": "You are a helpful assistant."},
+                {"role": "user", "content": "$jsonContent"}
+            ],
+            "max_tokens": ${ApiKeyConfig().maxTokens}
+        }
+    """.trimIndent()
+
+        // Convert JSON string to RequestBody
+        val requestBody: RequestBody = json.toRequestBody("application/json".toMediaTypeOrNull())
+
+        // Create the request
+        val request = Request.Builder()
+            .url("https://api.openai.com/v1/chat/completions")
+            .post(requestBody)
+            .addHeader("Authorization", "Bearer ${useApiKey()}")
+            .addHeader("Content-Type", "application/json")
+            .build()
+
+        // Send the request
+        client.newCall(request).enqueue(object : okhttp3.Callback {
+            override fun onFailure(call: okhttp3.Call, e: IOException) {
+                JOptionPane.showMessageDialog(null, "Error during translation: ${e.message}")
+            }
+
+            override fun onResponse(call: okhttp3.Call, response: Response) {
+                response.use {
+                    try {
+                        val responseBody = response.body?.string() ?: ""
+
+                        if (!response.isSuccessful) {
+                            JOptionPane.showMessageDialog(
+                                null,
+                                "Unexpected response code: ${response.code}\nResponse: $responseBody"
+                            )
+                            return
+                        }
+
+                        // Parse the JSON response using Gson
+                        val jsonElement = JsonParser.parseString(responseBody)
+                        val jsonObject = jsonElement.asJsonObject
+
+                        // Access the nested content field
+                        val content =
+                            jsonObject["choices"].asJsonArray[0].asJsonObject["message"].asJsonObject["content"].asString
+
+                        // Clean the content if needed (e.g., strip backticks or extraneous text)
+                        val cleanedContent = content.trim().removePrefix("```json").removeSuffix("```").trim()
+
+                        // Parse the cleaned content as JSON
+                        val parsedJson = JsonParser.parseString(cleanedContent).asJsonObject
+
+                        // Prepare to add the key and translations to the table
+                        SwingUtilities.invokeLater {
+                            try {
+                                mutationObserver.addRowMutation(key)
+
+                                // Create a row array with nulls to represent all columns
+                                val rowArray = arrayOfNulls<Any>(tableModel.columnCount)
+
+                                // Fill the array with the correct translations in the correct columns
+                                for (col in 0 until tableModel.columnCount) {
+                                    val columnName = tableModel.getColumnName(col).toUpperCase()
+
+                                    when {
+                                        columnName == "KEY" -> rowArray[col] = key
+                                        columnName == getDefaultLang() -> rowArray[col] = wordToTranslate
+                                        parsedJson.has(columnName) -> {
+                                            rowArray[col] = parsedJson[columnName].asJsonObject[key].asString
+                                        }
+                                    }
+                                }
+
+                                // Add the row to the table
+                                tableModel.addRow(rowArray)
+
+                                // Get the key from the newly added row
+                                val newKey = key // Assuming `key` is the value you added
+
+                                // Determine the correct index based on sorting
+                                val newIndex = (0 until tableModel.rowCount).firstOrNull {
+                                    val existingKey =
+                                        tableModel.getValueAt(it, 0) // Assuming "KEY" is in the first column
+                                    existingKey.toString() >= newKey
+                                } ?: tableModel.rowCount // If not found, it goes to the end
+
+                                for (i in 0 until totalLanguage) {
+                                    mutationObserver.addMutation(key, i, rowArray.get(i + 1) as String)
+                                }
+
+                                val cellRect = table?.getCellRect(newIndex, 0, true)
+                                table?.scrollRectToVisible(cellRect)
+                            } catch (e: Exception) {
+                                JOptionPane.showMessageDialog(null, "Error updating table: ${e.message}")
+                                e.printStackTrace()
+                            }
+                        }
+                    } catch (e: Exception) {
+                        JOptionPane.showMessageDialog(null, "Error processing response: ${e.message}")
+                        e.printStackTrace()
+                    }
+                }
+            }
+        })
     }
 }

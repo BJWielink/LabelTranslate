@@ -9,17 +9,24 @@ class ApiKeyConfig {
         set(value) {
             properties.setValue("label_translate.api_key", value)
         }
-}
 
-class CustomFilePathConfig {
-
+    var maxTokens: String
+        get() = properties.getValue("label_translate.max_tokens", "150") // Default is an empty string if not found
+        set(value) {
+            properties.setValue("label_translate.max_tokens", value)
+        }
 }
 
 class DefaultLanguage {
     private val properties = PropertiesComponent.getInstance()
     var defaultLanguage: String
-        get() = properties.getValue("label_translate.default_language", "") // Default is an empty string if not found
+        get() = properties.getValue("label_translate.default_language", "EN") // Default is an empty string if not found
         set(value) {
             properties.setValue("label_translate.default_language", value)
         }
+}
+
+//todo this is for later
+class CustomFilePathConfig {
+
 }
