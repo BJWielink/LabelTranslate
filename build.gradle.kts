@@ -37,9 +37,8 @@ tasks {
     }
 
     patchPluginXml {
-        // Use a range for the sinceBuild and untilBuild versions
-        sinceBuild.set("242") // Minimum version for your plugin to work
-        untilBuild.set("243.*") // This allows compatibility with a range of PhpStorm versions (e.g., until PhpStorm 243.x)
+        sinceBuild.set("222")
+        untilBuild.set("243.*")
     }
 
     signPlugin {
