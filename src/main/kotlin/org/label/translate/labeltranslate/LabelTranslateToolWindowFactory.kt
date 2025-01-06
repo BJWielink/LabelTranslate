@@ -1,5 +1,6 @@
 package org.label.translate.labeltranslate
 
+import com.google.gson.JsonParser
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.wm.ToolWindow
 import com.intellij.openapi.wm.ToolWindowFactory
@@ -7,12 +8,19 @@ import com.intellij.ui.components.JBCheckBox
 import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.content.ContentFactory
 import com.intellij.ui.table.JBTable
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody
+import okhttp3.RequestBody.Companion.toRequestBody
+import okhttp3.Response
 import java.awt.BorderLayout
 import java.awt.Dimension
 import java.awt.FlowLayout
 import java.awt.event.ActionEvent
 import java.awt.event.ItemEvent
 import java.awt.event.KeyEvent
+import java.io.IOException
 import javax.swing.*
 import javax.swing.table.DefaultTableModel
 import javax.swing.table.TableCellRenderer
@@ -24,16 +32,21 @@ data class PreviousState(val scrollPosition: Int, val errorFilter: Boolean)
 class LabelTranslateToolWindowFactory : ToolWindowFactory {
     override fun createToolWindowContent(project: Project, toolWindow: ToolWindow) {
         val translationSet = TranslationSet.loadFromPath(project.basePath)
-
         for (tab in translationSet) {
             val toolWindowContent = LabelTranslateToolWindowContent(tab, project, toolWindow)
-            val content = ContentFactory.getInstance().createContent(toolWindowContent.contentPanel, tab.displayName, false)
+            val content =
+                ContentFactory.getInstance().createContent(toolWindowContent.contentPanel, tab.displayName, false)
             toolWindow.contentManager.addContent(content)
         }
     }
 }
 
-class LabelTranslateToolWindowContent(private val translationSet: TranslationSet, private val project: Project, private val toolWindow: ToolWindow, private val previousState: PreviousState? = null) {
+class LabelTranslateToolWindowContent(
+    private val translationSet: TranslationSet,
+    private val project: Project,
+    private val toolWindow: ToolWindow,
+    private val previousState: PreviousState? = null
+) {
     val contentPanel = JPanel()
     private val mutationObserver = MutationObserver()
     private var table: JBTable? = null
@@ -85,12 +98,12 @@ class LabelTranslateToolWindowContent(private val translationSet: TranslationSet
             } else {
                 LabelTranslateToolWindowContent(tab, project, toolWindow)
             }
-            val content = ContentFactory.getInstance().createContent(toolWindowContent.contentPanel, tab.displayName, false)
+            val content =
+                ContentFactory.getInstance().createContent(toolWindowContent.contentPanel, tab.displayName, false)
             toolWindow.contentManager.addContent(content)
         }
 
         val contentBefore = toolWindow.contentManager.findContent(previousDisplayName)
-
         contentBefore?.let {
             toolWindow.contentManager.setSelectedContent(it)
         }
@@ -106,7 +119,8 @@ class LabelTranslateToolWindowContent(private val translationSet: TranslationSet
         val checkboxContainer = JPanel(FlowLayout(FlowLayout.CENTER))
         panel.add(checkboxContainer, BorderLayout.EAST)
 
-        // Add search field for filtering
+        //todo doesn't work with the "error" checkbox
+        // Search Field
         val searchField = JTextField(15)
         searchField.toolTipText = "Search by key or translation"
         searchField.addKeyListener(object : java.awt.event.KeyAdapter() {
@@ -141,13 +155,35 @@ class LabelTranslateToolWindowContent(private val translationSet: TranslationSet
         // Save button
         val saveButton = JButton("Save")
         saveButton.addActionListener {
-            val saveContext = SaveContext(translationSet, mutationObserver)
-            saveContext.overwriteChanges()
-            reloadTabsAndData()
+            try {
+                val saveContext = SaveContext(translationSet, mutationObserver)
+                saveContext.overwriteChanges()
+                reloadTabsAndData()
+            } catch (e: Exception) {
+                JOptionPane.showMessageDialog(null, "Error during save: ${e.message}")
+                e.printStackTrace()
+            }
         }
         buttonContainer.add(saveButton)
 
-        // Display button for errors
+        // Translate button
+        val translateButton = JButton("Translate")
+        translateButton.addActionListener {
+            val translateDialog = TranslateDialogWrapper()
+            if (translateDialog.showAndGet()) {
+                val key = translateDialog.keyField?.text ?: ""
+                val wordToTranslate = translateDialog.wordToTranslateField?.text ?: ""
+                if (key.isNotBlank() && wordToTranslate.isNotBlank()) {
+                    translateWord(key, wordToTranslate, table.model as DefaultTableModel, mutationObserver)
+                }
+            }
+        }
+
+        if(useApiKey() != "false") {
+            buttonContainer.add(translateButton)
+        }
+
+        // Display checkbox for errors
         val displayCheckbox = JBCheckBox("Errors")
         displayCheckbox.border = BorderFactory.createEmptyBorder(6, 0, 0, 0)
         displayCheckbox.addItemListener {
@@ -169,7 +205,7 @@ class LabelTranslateToolWindowContent(private val translationSet: TranslationSet
         } else {
             object : RowFilter<TableModel, Int>() {
                 override fun include(entry: Entry<out TableModel, out Int>): Boolean {
-                    // Check if any column contains the search text (case-insensitive)
+                    // Check if any column contains the search text
                     for (i in 0 until entry.valueCount) {
                         if (entry.getStringValue(i).toLowerCase().contains(searchText)) {
                             return true
@@ -183,7 +219,7 @@ class LabelTranslateToolWindowContent(private val translationSet: TranslationSet
 
     private fun getEmptyCellSorter() {
         // Sorter
-        sorter?.rowFilter = object: RowFilter<TableModel, Any>() {
+        sorter?.rowFilter = object : RowFilter<TableModel, Any>() {
             override fun include(entry: Entry<out TableModel, out Any>?): Boolean {
                 if (entry == null) {
                     return false
@@ -200,24 +236,28 @@ class LabelTranslateToolWindowContent(private val translationSet: TranslationSet
         }
     }
 
+    private fun handleEvent(tableModel: DefaultTableModel, row: Int, column: Int) {
+        val key = tableModel.getValueAt(row, 0) as String
+        val oldValue = translationSet.listTranslationsFor(key)[column - 1]
+        val newValue = tableModel.getValueAt(row, column) as String
+        if (oldValue == newValue) {
+            mutationObserver.removeIndex(key, column - 1)
+        } else {
+            mutationObserver.addMutation(key, column - 1, newValue)
+        }
+    }
+
     private fun createTable(): JBTable {
         val keys = translationSet.getKeys().map { arrayOf(it, *translationSet.listTranslationsFor(it)) }.toTypedArray()
 
         val tableModel = DefaultTableModel(keys, arrayOf("Key", *translationSet.listLanguages()))
         tableModel.addTableModelListener {
             if (it.column > 0) { // Skip new row added
-                val key = tableModel.getValueAt(it.firstRow, 0) as String
-                val oldValue = translationSet.listTranslationsFor(key)[it.column - 1]
-                val newValue = tableModel.getValueAt(it.firstRow, it.column) as String
-                if (oldValue == newValue) {
-                    mutationObserver.removeIndex(key, it.column - 1)
-                } else {
-                    mutationObserver.addMutation(key, it.column - 1, newValue)
-                }
+                handleEvent(tableModel, it.firstRow, it.column)
             }
         }
 
-        val table = object: JBTable(tableModel) {
+        val table = object : JBTable(tableModel) {
             override fun getCellRenderer(row: Int, column: Int): TableCellRenderer {
                 return EmptyCellRenderer(mutationObserver)
             }
@@ -238,7 +278,7 @@ class LabelTranslateToolWindowContent(private val translationSet: TranslationSet
         // Delete button
         val keyStroke = KeyStroke.getKeyStroke(KeyEvent.VK_DELETE, 0)
         table.getInputMap(JComponent.WHEN_FOCUSED).put(keyStroke, "deleteAction")
-        table.actionMap.put("deleteAction", object: AbstractAction() {
+        table.actionMap.put("deleteAction", object : AbstractAction() {
             override fun actionPerformed(e: ActionEvent?) {
                 val key = table.getValueAt(table.selectedRow, 0) as String
                 if (DeleteDialogWrapper(key).showAndGet()) {
@@ -261,5 +301,157 @@ class LabelTranslateToolWindowContent(private val translationSet: TranslationSet
         panel.add(scrollPane!!, BorderLayout.CENTER)
 
         return panel
+    }
+
+    fun getDefaultLang(): String {
+        return DefaultLanguage().defaultLanguage
+    }
+
+    fun useApiKey(): String {
+        val apiKeyConfig = ApiKeyConfig()
+        val apiKey = apiKeyConfig.apiKey // Access the API key
+
+        if (apiKey.isEmpty()) {
+            return "false"
+        }
+
+        return apiKey
+    }
+
+    fun translateWord(
+        key: String,
+        wordToTranslate: String,
+        tableModel: DefaultTableModel,
+        mutationObserver: MutationObserver
+    ) {
+        val client = OkHttpClient()
+
+        // Identify languages present in the table
+        val languages = mutableListOf<String>()
+        val totalLanguage = tableModel.columnCount - 1
+        for (col in 0 until tableModel.columnCount) {
+            val columnName = tableModel.getColumnName(col).toUpperCase()
+            if (columnName != "KEY" && columnName != getDefaultLang()) {
+                languages.add(columnName)
+            }
+        }
+
+        // Construct the JSON request dynamically based on these languages
+        val languagesJson = languages.joinToString(", ") { "\\\"$it\\\": {\\\"$key\\\": \\\"translation\\\"}" }
+        val jsonContent = """
+        Translate the \"${getDefaultLang()}\" word/sentence \"$wordToTranslate\" into the following languages: ${languages.joinToString(", ")}.
+        Use this as a key \"$key\". Please return the translations in the following structured JSON format: {$languagesJson}
+        and only return that, not other text.
+    """.trimIndent().replace("\n", " ")
+
+        //todo make max_tokens a setting
+        // Construct the JSON payload
+        val json = """
+        {
+            "model": "gpt-4o-mini",
+            "messages": [
+                {"role": "system", "content": "You are a helpful assistant."},
+                {"role": "user", "content": "$jsonContent"}
+            ],
+            "max_tokens": ${ApiKeyConfig().maxTokens}
+        }
+    """.trimIndent()
+
+        // Convert JSON string to RequestBody
+        val requestBody: RequestBody = json.toRequestBody("application/json".toMediaTypeOrNull())
+
+        // Create the request
+        val request = Request.Builder()
+            .url("https://api.openai.com/v1/chat/completions")
+            .post(requestBody)
+            .addHeader("Authorization", "Bearer ${useApiKey()}")
+            .addHeader("Content-Type", "application/json")
+            .build()
+
+        // Send the request
+        client.newCall(request).enqueue(object : okhttp3.Callback {
+            override fun onFailure(call: okhttp3.Call, e: IOException) {
+                JOptionPane.showMessageDialog(null, "Error during translation: ${e.message}")
+            }
+
+            override fun onResponse(call: okhttp3.Call, response: Response) {
+                response.use {
+                    try {
+                        val responseBody = response.body?.string() ?: ""
+
+                        if (!response.isSuccessful) {
+                            JOptionPane.showMessageDialog(
+                                null,
+                                "Unexpected response code: ${response.code}\nResponse: $responseBody"
+                            )
+                            return
+                        }
+
+                        // Parse the JSON response using Gson
+                        val jsonElement = JsonParser.parseString(responseBody)
+                        val jsonObject = jsonElement.asJsonObject
+
+                        // Access the nested content field
+                        val content =
+                            jsonObject["choices"].asJsonArray[0].asJsonObject["message"].asJsonObject["content"].asString
+
+                        // Clean the content if needed (e.g., strip backticks or extraneous text)
+                        val cleanedContent = content.trim().removePrefix("```json").removeSuffix("```").trim()
+
+                        // Parse the cleaned content as JSON
+                        val parsedJson = JsonParser.parseString(cleanedContent).asJsonObject
+
+                        // Prepare to add the key and translations to the table
+                        SwingUtilities.invokeLater {
+                            try {
+                                mutationObserver.addRowMutation(key)
+
+                                // Create a row array with nulls to represent all columns
+                                val rowArray = arrayOfNulls<Any>(tableModel.columnCount)
+
+                                // Fill the array with the correct translations in the correct columns
+                                for (col in 0 until tableModel.columnCount) {
+                                    val columnName = tableModel.getColumnName(col).toUpperCase()
+
+                                    when {
+                                        columnName == "KEY" -> rowArray[col] = key
+                                        columnName == getDefaultLang() -> rowArray[col] = wordToTranslate
+                                        parsedJson.has(columnName) -> {
+                                            rowArray[col] = parsedJson[columnName].asJsonObject[key].asString
+                                        }
+                                    }
+                                }
+
+                                // Add the row to the table
+                                tableModel.addRow(rowArray)
+
+                                // Get the key from the newly added row
+                                val newKey = key // Assuming `key` is the value you added
+
+                                // Determine the correct index based on sorting
+                                val newIndex = (0 until tableModel.rowCount).firstOrNull {
+                                    val existingKey =
+                                        tableModel.getValueAt(it, 0) // Assuming "KEY" is in the first column
+                                    existingKey.toString() >= newKey
+                                } ?: tableModel.rowCount // If not found, it goes to the end
+
+                                for (i in 0 until totalLanguage) {
+                                    mutationObserver.addMutation(key, i, rowArray.get(i + 1) as String)
+                                }
+
+                                val cellRect = table?.getCellRect(newIndex, 0, true)
+                                table?.scrollRectToVisible(cellRect)
+                            } catch (e: Exception) {
+                                JOptionPane.showMessageDialog(null, "Error updating table: ${e.message}")
+                                e.printStackTrace()
+                            }
+                        }
+                    } catch (e: Exception) {
+                        JOptionPane.showMessageDialog(null, "Error processing response: ${e.message}")
+                        e.printStackTrace()
+                    }
+                }
+            }
+        })
     }
 }

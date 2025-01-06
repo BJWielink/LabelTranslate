@@ -2,12 +2,11 @@ package org.label.translate.labeltranslate
 
 import com.intellij.util.containers.MultiMap
 import java.io.File
-import java.util.LinkedHashMap
-import java.util.SortedMap
+import java.util.*
 
 data class TranslationSet(val displayName: String, val translationFiles: Collection<File>) {
     private val contentMap: SortedMap<String, LinkedHashMap<String, String>> by lazy {
-        val result = sortedMapOf<String, LinkedHashMap<String, String>>(compareBy { it.lowercase() })
+        val result = sortedMapOf<String, LinkedHashMap<String, String>>(compareBy { it.toLowerCase() })
 
         for (translationFile in translationFiles) {
             val languageKey = translationFile.parentFile.name
@@ -32,7 +31,7 @@ data class TranslationSet(val displayName: String, val translationFiles: Collect
         // Remove quotation marks from regex obtained values
         var result = input.substring(1, input.lastIndex)
 
-        // Unescape \' for visualisation. On save, they will be added again
+        // Unescape \' for visualization. On save, they will be added again
         result = result.replace("\\'", "'")
 
         return result
@@ -59,8 +58,8 @@ data class TranslationSet(val displayName: String, val translationFiles: Collect
     fun getKeys(): List<String> {
         val keys = mutableSetOf<String>()
         for (translationEntry in contentMap.entries) {
-            for (keyValurPair in translationEntry.value) {
-                keys.add(keyValurPair.key)
+            for (keyValuePair in translationEntry.value) {
+                keys.add(keyValuePair.key)
             }
         }
         return keys.sortedWith(String.CASE_INSENSITIVE_ORDER)
@@ -78,16 +77,7 @@ data class TranslationSet(val displayName: String, val translationFiles: Collect
          * the EXCLUDED_LANGUAGE_FOLDERS will be parsed.
          */
         private const val TRANSLATION_FILE_SUFFIX = ".php"
-
-        /*
-         * Regex that searches for everything between ' or ", ignoring \' and \".
-         * The match will include the quotation marks itself.
-         */
         private val KEY_VALUE_PAIR_REGEX = Regex("""(['"])(?:(?<=\\)\1|.)*?(?<!\\)\1(?!=>)""")
-
-        /*
-         * Folders in which we don't look for translation files.
-         */
         private val EXCLUDED_LANGUAGE_FOLDERS = listOf("vendor")
 
         fun getResourcePath(project: String?): String {
@@ -123,7 +113,7 @@ data class TranslationSet(val displayName: String, val translationFiles: Collect
 
             val result = mutableListOf<TranslationSet>()
             for ((name, files) in translationMap.entrySet()) {
-                val sortedFiles = files.sortedBy { it.parentFile.name.lowercase() }
+                val sortedFiles = files.sortedBy { it.parentFile.name.toLowerCase() }
                 result.add(TranslationSet(name.capitalize(), sortedFiles))
             }
 
