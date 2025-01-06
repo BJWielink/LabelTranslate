@@ -1,7 +1,8 @@
 package org.label.translate.labeltranslate
 
 import com.intellij.openapi.options.Configurable
-import com.intellij.openapi.ui.ComboBox // Use IntelliJ's ComboBox
+import com.intellij.openapi.ui.ComboBox
+import java.awt.Component
 import java.util.*
 import javax.swing.*
 
@@ -43,11 +44,15 @@ class LabelTranslateSettingsConfigurable : Configurable {
 
         apiKeyPanel.add(JLabel("API Key:"))
 
+        // Align text field to the left
         apiKeyField = JTextField(apiKeyConfig.apiKey, 20)
         apiKeyField.maximumSize = java.awt.Dimension(300, 30)
         apiKeyField.preferredSize = java.awt.Dimension(300, 30)
-        apiKeyField.minimumSize = java.awt.Dimension(100, 30)
+        apiKeyField.minimumSize = java.awt.Dimension(300, 30)
         apiKeyPanel.add(apiKeyField)
+
+        // Align the panel contents to the left
+        apiKeyPanel.alignmentX = Component.LEFT_ALIGNMENT
 
         return apiKeyPanel
     }
@@ -58,11 +63,15 @@ class LabelTranslateSettingsConfigurable : Configurable {
 
         tokenPanel.add(JLabel("Max api tokens:"))
 
+        // Align text field to the left
         tokenField = JTextField(apiKeyConfig.maxTokens, 20)
         tokenField.maximumSize = java.awt.Dimension(300, 30)
         tokenField.preferredSize = java.awt.Dimension(300, 30)
-        tokenField.minimumSize = java.awt.Dimension(100, 30)
+        tokenField.minimumSize = java.awt.Dimension(300, 30)
         tokenPanel.add(tokenField)
+
+        // Align the panel contents to the left
+        tokenPanel.alignmentX = Component.LEFT_ALIGNMENT
 
         return tokenPanel
     }
@@ -89,7 +98,7 @@ class LabelTranslateSettingsConfigurable : Configurable {
         // Set dimensions for the ComboBox
         languageComboBox.maximumSize = java.awt.Dimension(300, 30)
         languageComboBox.preferredSize = java.awt.Dimension(300, 30)
-        languageComboBox.minimumSize = java.awt.Dimension(100, 30)
+        languageComboBox.minimumSize = java.awt.Dimension(300, 30)
 
         // Set the default language
         val defaultKey = defaultLanguage.defaultLanguage.ifEmpty { "EN" } // Default to "EN" if no language is set
@@ -97,6 +106,9 @@ class LabelTranslateSettingsConfigurable : Configurable {
         languageComboBox.selectedItem = defaultOption
 
         languagePanel.add(languageComboBox)
+
+        // Align the panel contents to the left
+        languagePanel.alignmentX = Component.LEFT_ALIGNMENT
 
         return languagePanel
     }
