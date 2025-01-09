@@ -19,7 +19,7 @@ dependencies {
 // Configure Gradle IntelliJ Plugin
 // Read more: https://plugins.jetbrains.com/docs/intellij/tools-gradle-intellij-plugin.html
 intellij {
-    version.set("2024.2.1") // This is the default version. You can also leave it without a specific version and use a range if desired.
+    version.set("2024.3.1.1") // This is the default version. You can also leave it without a specific version and use a range if desired.
     type.set("PS") // Target IDE Platform
 
     // Define a range of versions for your plugin
@@ -37,7 +37,7 @@ tasks {
     }
 
     patchPluginXml {
-        sinceBuild.set("222")
+        sinceBuild.set("243")
         untilBuild.set("243.*")
     }
 
