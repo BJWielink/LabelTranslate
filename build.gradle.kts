@@ -5,7 +5,7 @@ plugins {
 }
 
 group = "org.label.translate"
-version = "1.8-SNAPSHOT"
+version = "1.9-SNAPSHOT"
 
 repositories {
     mavenCentral()
@@ -38,7 +38,6 @@ tasks {
 
     patchPluginXml {
         sinceBuild.set("222")
-        untilBuild.set("243.*")
     }
 
     signPlugin {

@@ -40,4 +40,7 @@
         <!-- Registering the settings configurable -->
         <projectConfigurable instance="org.label.translate.labeltranslate.LabelTranslateSettingsConfigurable" />
     </extensions>
+    <change-notes>
+        * Fixed max token from not being saved
+    </change-notes>
 </idea-plugin>
