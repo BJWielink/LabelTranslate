@@ -1,10 +1,9 @@
 package org.label.translate.labeltranslate
 
-import com.intellij.util.containers.MultiMap
 import java.io.File
 import java.util.*
 
-data class TranslationSet(val displayName: String, val translationFiles: Collection<File>) {
+data class TranslationSet(val displayName: String, val translationFiles: Collection<File>, val path: String) {
     private val contentMap: SortedMap<String, LinkedHashMap<String, String>> by lazy {
         val result = sortedMapOf<String, LinkedHashMap<String, String>>(compareBy { it.toLowerCase() })
 
@@ -68,9 +67,9 @@ data class TranslationSet(val displayName: String, val translationFiles: Collect
     companion object {
         /*
          * Location from root where we should look for resources / translation
-         * files.
+         * files. Combines default resource paths and custom paths.
          */
-        private val RESOURCE_PATHS = listOf("resources/lang", "lang")
+        val RESOURCE_PATHS = listOf("resources/lang", "lang") + CustomFilePathConfig().folderPaths
 
         /*
          * All files with this suffix and in the resource path, with exclusion of
@@ -80,44 +79,34 @@ data class TranslationSet(val displayName: String, val translationFiles: Collect
         private val KEY_VALUE_PAIR_REGEX = Regex("""(['"])(?:(?<=\\)\1|.)*?(?<!\\)\1(?!=>)""")
         private val EXCLUDED_LANGUAGE_FOLDERS = listOf("vendor")
 
-        fun getResourcePath(project: String?): String {
-            if (project.isNullOrBlank()) {
-                return RESOURCE_PATHS[0]
-            }
+        fun loadFromPath(project: String?, path: String): List<TranslationSet> {
+            if (project == null) return listOf()
+            val translationRoot = if (File(path).isAbsolute) File(path) else File(project, path)
 
-            for (resourcePath in RESOURCE_PATHS) {
-                val file = File(project, resourcePath)
+            if (!translationRoot.exists()) return listOf()
 
-                if (file.exists()) {
-                    return resourcePath
-                }
-            }
+            val languageFolders =
+                translationRoot.listFiles { file -> file.isDirectory && file.name !in EXCLUDED_LANGUAGE_FOLDERS }
+                    ?: return listOf()
 
-            return RESOURCE_PATHS[0]
-        }
+            val allFilesPerName = mutableMapOf<String, MutableList<File>>()
 
-        fun loadFromPath(project: String?): List<TranslationSet> {
-            if (project == null) {
-                return listOf()
-            }
-
-            val translationRoot = File(project, getResourcePath(project))
-            val languageFolders = translationRoot.listFiles { _, name -> name !in EXCLUDED_LANGUAGE_FOLDERS } ?: return listOf()
-            val translationMap = MultiMap<String, File>()
             for (languageFolder in languageFolders) {
-                val languageFiles = languageFolder.listFiles { _, name -> name.endsWith(TRANSLATION_FILE_SUFFIX) } ?: arrayOf()
-                for (languageFile in languageFiles) {
-                    translationMap.putValue(languageFile.nameWithoutExtension, languageFile)
+                val translationFiles = languageFolder.listFiles { _, name ->
+                    name.endsWith(TRANSLATION_FILE_SUFFIX)
+                } ?: continue
+
+                for (file in translationFiles) {
+                    val nameWithoutExt = file.nameWithoutExtension
+                    allFilesPerName.computeIfAbsent(nameWithoutExt) { mutableListOf() }.add(file)
                 }
             }
 
-            val result = mutableListOf<TranslationSet>()
-            for ((name, files) in translationMap.entrySet()) {
+            return allFilesPerName.map { (name, files) ->
                 val sortedFiles = files.sortedBy { it.parentFile.name.toLowerCase() }
-                result.add(TranslationSet(name.capitalize(), sortedFiles))
+                TranslationSet(name.capitalize(), sortedFiles, path)
             }
-
-            return result
         }
+
     }
 }

@@ -28,5 +28,13 @@ class DefaultLanguage {
 
 //todo this is for later
 class CustomFilePathConfig {
+    private val properties = PropertiesComponent.getInstance()
 
+    var folderPaths: List<String>
+        get() = properties.getValue("label_translate.folder_paths", "")
+            .split(";") // Use ";" as a delimiter for multiple paths
+            .filter { it.isNotBlank() } // Remove any empty entries
+        set(value) {
+            properties.setValue("label_translate.folder_paths", value.joinToString(";")) // Serialize as ";" delimited string
+        }
 }

@@ -14,11 +14,11 @@ class MutationObserver {
     }
 
     fun isDeleted(key: Any?): Boolean {
-        return deletions.contains(key);
+        return deletions.contains(key)
     }
 
     fun addDeletion(key: String) {
-        deletions.add(key);
+        deletions.add(key)
     }
 
     fun getTranslationsForCol(col: Int): List<MutationResult> {
@@ -43,6 +43,12 @@ class MutationObserver {
     }
 
     fun isMutatedRow(key: Any?): Boolean {
-        return rowMutations.any { it.key == key}
+        return rowMutations.any { it.key == key }
+    }
+
+    fun clear() {  // Corrected clear function
+        mutations.clear()
+        rowMutations.clear()
+        deletions.clear()
     }
 }

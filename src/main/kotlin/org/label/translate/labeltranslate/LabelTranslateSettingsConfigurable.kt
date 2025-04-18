@@ -10,12 +10,18 @@ class LabelTranslateSettingsConfigurable : Configurable {
     private lateinit var apiKeyField: JTextField
     private lateinit var tokenField: JTextField
     private lateinit var apiKeyConfig: ApiKeyConfig
-    private lateinit var languageComboBox: ComboBox<String> // Updated to use IntelliJ's ComboBox
-    private lateinit var defaultLanguage: DefaultLanguage // To manage the default language
+    private lateinit var languageComboBox: ComboBox<String>
+    private lateinit var defaultLanguage: DefaultLanguage
+    private lateinit var customFilePathConfig: CustomFilePathConfig
+    private val folderListModel = DefaultListModel<String>() // Model to manage folder paths in the UI
+    private lateinit var folderList: JList<String> // List component for displaying folder paths
+    private lateinit var addFolderButton: JButton
+    private lateinit var removeFolderButton: JButton
 
     override fun createComponent(): JComponent {
-        apiKeyConfig = ApiKeyConfig() // Initialize the ApiKeyConfig
-        defaultLanguage = DefaultLanguage() // Initialize DefaultLanguage
+        apiKeyConfig = ApiKeyConfig()
+        defaultLanguage = DefaultLanguage()
+        customFilePathConfig = CustomFilePathConfig()
 
         val mainPanel = JPanel()
         mainPanel.layout = BoxLayout(mainPanel, BoxLayout.Y_AXIS)
@@ -26,6 +32,8 @@ class LabelTranslateSettingsConfigurable : Configurable {
         mainPanel.add(createMaxTokenSection())
         mainPanel.add(Box.createRigidArea(java.awt.Dimension(0, 20)))
         mainPanel.add(createLanguageDropdownSection())
+        mainPanel.add(Box.createRigidArea(java.awt.Dimension(0, 20)))
+        mainPanel.add(createCustomFolderSection())
 
         return mainPanel
     }
@@ -83,16 +91,66 @@ class LabelTranslateSettingsConfigurable : Configurable {
         return languagePanel
     }
 
+    private fun createCustomFolderSection(): JPanel {
+        val folderPanel = JPanel()
+        folderPanel.layout = BoxLayout(folderPanel, BoxLayout.Y_AXIS)
+        folderPanel.add(JLabel("Custom Folder Paths:"))
+
+        folderList = JList(folderListModel)
+        folderList.visibleRowCount = 5
+        folderList.setFixedCellWidth(400)
+        val scrollPane = JScrollPane(folderList)
+        folderPanel.add(scrollPane)
+
+        val buttonPanel = JPanel()
+        buttonPanel.layout = BoxLayout(buttonPanel, BoxLayout.X_AXIS)
+        addFolderButton = JButton("Add Folder")
+        removeFolderButton = JButton("Remove Selected")
+
+        addFolderButton.addActionListener {
+            val fileChooser = JFileChooser()
+            fileChooser.fileSelectionMode = JFileChooser.DIRECTORIES_ONLY
+            fileChooser.dialogTitle = "Select Folder"
+
+            val returnValue = fileChooser.showOpenDialog(null)
+            if (returnValue == JFileChooser.APPROVE_OPTION) {
+                val selectedFolder = fileChooser.selectedFile.absolutePath
+                folderListModel.addElement(selectedFolder)
+            }
+        }
+
+        removeFolderButton.addActionListener {
+            val selectedIndices = folderList.selectedIndices
+            for (i in selectedIndices.reversed()) {
+                folderListModel.remove(i)
+            }
+        }
+
+        buttonPanel.add(addFolderButton)
+        buttonPanel.add(Box.createRigidArea(java.awt.Dimension(10, 0)))
+        buttonPanel.add(removeFolderButton)
+        folderPanel.add(buttonPanel)
+
+        folderPanel.alignmentX = Component.LEFT_ALIGNMENT
+        return folderPanel
+    }
+
     override fun isModified(): Boolean {
         return apiKeyField.text != apiKeyConfig.apiKey ||
                 tokenField.text != apiKeyConfig.maxTokens ||
-                languageComboBox.selectedItem.toString().substringBefore(" -") != defaultLanguage.defaultLanguage
+                languageComboBox.selectedItem.toString().substringBefore(" -") != defaultLanguage.defaultLanguage ||
+                !customFilePathConfig.folderPaths.containsAll(folderListModel.elements().toList()) ||
+                !folderListModel.elements().toList().containsAll(customFilePathConfig.folderPaths)
     }
 
     override fun apply() {
         apiKeyConfig.apiKey = apiKeyField.text
         apiKeyConfig.maxTokens = tokenField.text
         defaultLanguage.defaultLanguage = languageComboBox.selectedItem.toString().substringBefore(" -")
+        customFilePathConfig.folderPaths = folderListModel.elements().toList()
+
+        val bus = com.intellij.openapi.application.ApplicationManager.getApplication().messageBus
+        bus.syncPublisher(SettingsChangedNotifier.TOPIC).onFolderPathsChanged()
     }
 
     override fun reset() {
@@ -101,9 +159,16 @@ class LabelTranslateSettingsConfigurable : Configurable {
         val defaultOption = (0 until languageComboBox.itemCount).map { languageComboBox.getItemAt(it) }
             .find { it.startsWith("${defaultLanguage.defaultLanguage} -") } ?: "EN - English"
         languageComboBox.selectedItem = defaultOption
+
+        folderListModel.clear()
+        customFilePathConfig.folderPaths.forEach { folderListModel.addElement(it) }
     }
 
     override fun getDisplayName(): String {
         return "Label Translate Settings"
+    }
+
+    private fun <E> DefaultListModel<E>.elements(): List<E> {
+        return (0 until size).map { getElementAt(it) }
     }
 }

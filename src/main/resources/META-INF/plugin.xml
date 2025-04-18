@@ -36,7 +36,7 @@
          Read more: https://plugins.jetbrains.com/docs/intellij/plugin-extension-points.html -->
     <extensions defaultExtensionNs="com.intellij">
         <toolWindow factoryClass="org.label.translate.labeltranslate.LabelTranslateToolWindowFactory" id="Label translate" anchor="right" icon="/icons/pluginIcon.svg" />
-
+z
         <!-- Registering the settings configurable -->
         <projectConfigurable instance="org.label.translate.labeltranslate.LabelTranslateSettingsConfigurable" />
     </extensions>
