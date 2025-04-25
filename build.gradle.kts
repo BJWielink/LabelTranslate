@@ -1,29 +1,46 @@
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+
 plugins {
     id("java")
-    id("org.jetbrains.kotlin.jvm") version "1.9.21"
-    id("org.jetbrains.intellij") version "1.16.1"
+    id("org.jetbrains.kotlin.jvm") version "2.1.20"
+    id("org.jetbrains.intellij.platform") version "2.5.0"
 }
 
 group = "org.label.translate"
-version = "1.8-SNAPSHOT"
+version = "1.9-SNAPSHOT"
 
 repositories {
     mavenCentral()
+    intellijPlatform {
+        defaultRepositories()
+    }
 }
 
 dependencies {
     implementation("com.squareup.okhttp3:okhttp:4.9.3")
     implementation("com.google.code.gson:gson:2.8.9")
+
+    intellijPlatform {
+        create("PS", "2024.2.1")
+        plugins(listOf(/* Plugin Dependencies */))
+    }
 }
 
-// Configure Gradle IntelliJ Plugin
-// Read more: https://plugins.jetbrains.com/docs/intellij/tools-gradle-intellij-plugin.html
-intellij {
-    version.set("2024.2.1") // This is the default version. You can also leave it without a specific version and use a range if desired.
-    type.set("PS") // Target IDE Platform
-
-    // Define a range of versions for your plugin
-    plugins.set(listOf(/* Plugin Dependencies */))
+intellijPlatform {
+    pluginConfiguration {
+        ideaVersion {
+            sinceBuild = "222"
+            untilBuild = provider { null }
+        }
+    }
+    publishing {
+        token = System.getenv("PUBLISH_TOKEN")
+    }
+    signing {
+        certificateChain = System.getenv("CERTIFICATE_CHAIN")
+        privateKey = System.getenv("PRIVATE_KEY")
+        password = System.getenv("PRIVATE_KEY_PASSWORD")
+    }
 }
 
 tasks {
@@ -33,21 +50,6 @@ tasks {
         targetCompatibility = "17"
     }
     withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> {
-        kotlinOptions.jvmTarget = "17"
-    }
-
-    patchPluginXml {
-        sinceBuild.set("222")
-        untilBuild.set("243.*")
-    }
-
-    signPlugin {
-        certificateChain.set(System.getenv("CERTIFICATE_CHAIN"))
-        privateKey.set(System.getenv("PRIVATE_KEY"))
-        password.set(System.getenv("PRIVATE_KEY_PASSWORD"))
-    }
-
-    publishPlugin {
-        token.set(System.getenv("PUBLISH_TOKEN"))
+        compilerOptions.jvmTarget.set(JvmTarget.JVM_17)
     }
 }

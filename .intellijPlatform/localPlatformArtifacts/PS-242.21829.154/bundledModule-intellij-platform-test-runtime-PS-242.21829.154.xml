@@ -1,0 +1,45 @@
+<ivy-module version="2.0">
+  <info organisation="bundledModule" module="intellij-platform-test-runtime" revision="PS-242.21829.154"/>
+  <configurations>
+    <conf name="default" visibility="public"/>
+  </configurations>
+  <publications>
+    <artifact name="app-client" ext="jar" conf="default" url="lib"/>
+    <artifact name="app" ext="jar" conf="default" url="lib"/>
+    <artifact name="product" ext="jar" conf="default" url="lib"/>
+    <artifact name="intellij.platform.images.copyright" ext="jar" conf="default" url="lib/modules"/>
+    <artifact name="intellij.platform.lvcs.impl" ext="jar" conf="default" url="lib/modules"/>
+    <artifact name="intellij.platform.coverage.agent" ext="jar" conf="default" url="lib/modules"/>
+    <artifact name="intellij.platform.kernel" ext="jar" conf="default" url="lib/modules"/>
+    <artifact name="intellij.platform.coverage" ext="jar" conf="default" url="lib/modules"/>
+    <artifact name="intellij.platform.execution.serviceView" ext="jar" conf="default" url="lib/modules"/>
+    <artifact name="intellij.platform.navbar.backend" ext="jar" conf="default" url="lib/modules"/>
+    <artifact name="intellij.profiler.common" ext="jar" conf="default" url="lib/modules"/>
+    <artifact name="intellij.platform.kernel.backend" ext="jar" conf="default" url="lib/modules"/>
+    <artifact name="intellij.profiler.ultimate.ideaAsyncProfiler" ext="jar" conf="default" url="lib/modules"/>
+    <artifact name="intellij.libraries.ktor.client" ext="jar" conf="default" url="lib/modules"/>
+    <artifact name="intellij.platform.navbar" ext="jar" conf="default" url="lib/modules"/>
+    <artifact name="intellij.platform.clouds" ext="jar" conf="default" url="lib/modules"/>
+    <artifact name="intellij.platform.navbar.frontend" ext="jar" conf="default" url="lib/modules"/>
+    <artifact name="intellij.ide.startup.importSettings" ext="jar" conf="default" url="lib/modules"/>
+    <artifact name="intellij.profiler.asyncOne" ext="jar" conf="default" url="lib/modules"/>
+    <artifact name="intellij.platform.ml.embeddings" ext="jar" conf="default" url="lib/modules"/>
+    <artifact name="intellij.platform.collaborationTools" ext="jar" conf="default" url="lib/modules"/>
+    <artifact name="intellij.platform.images.backend.svg" ext="jar" conf="default" url="lib/modules"/>
+    <artifact name="intellij.platform.navbar.monolith" ext="jar" conf="default" url="lib/modules"/>
+    <artifact name="intellij.platform.dap" ext="jar" conf="default" url="lib/modules"/>
+    <artifact name="intellij.platform.ide.newUiOnboarding" ext="jar" conf="default" url="lib/modules"/>
+    <artifact name="intellij.smart.update" ext="jar" conf="default" url="lib/modules"/>
+    <artifact name="intellij.php.newUiOnboarding" ext="jar" conf="default" url="lib/modules"/>
+    <artifact name="intellij.platform.vcs.impl" ext="jar" conf="default" url="lib/modules"/>
+    <artifact name="intellij.phpstorm.customization" ext="jar" conf="default" url="lib/modules"/>
+    <artifact name="intellij.platform.vcs.dvcs.impl" ext="jar" conf="default" url="lib/modules"/>
+    <artifact name="intellij.platform.vcs.log.impl" ext="jar" conf="default" url="lib/modules"/>
+    <artifact name="intellij.platform.settings.local" ext="jar" conf="default" url="lib/modules"/>
+    <artifact name="intellij.platform.execution.dashboard" ext="jar" conf="default" url="lib/modules"/>
+    <artifact name="intellij.libraries.microba" ext="jar" conf="default" url="lib/modules"/>
+    <artifact name="intellij.platform.whatsNew" ext="jar" conf="default" url="lib/modules"/>
+    <artifact name="intellij.platform.smRunner.vcs" ext="jar" conf="default" url="lib/modules"/>
+  </publications>
+  <dependencies/>
+</ivy-module>
