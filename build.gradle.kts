@@ -1,3 +1,4 @@
+import org.jetbrains.intellij.platform.gradle.IntelliJPlatformType
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
@@ -21,12 +22,17 @@ dependencies {
     implementation("com.google.code.gson:gson:2.8.9")
 
     intellijPlatform {
-        create("PS", "2024.2.1")
+        create("PS", "2025.1.0.1")
         plugins(listOf(/* Plugin Dependencies */))
     }
 }
 
 intellijPlatform {
+    pluginVerification {
+        ides {
+            ide(IntelliJPlatformType.PhpStorm, "2025.1.0.1")
+        }
+    }
     pluginConfiguration {
         ideaVersion {
             sinceBuild = "222"

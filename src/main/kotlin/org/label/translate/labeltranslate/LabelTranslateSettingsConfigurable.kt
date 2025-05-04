@@ -90,7 +90,7 @@ class LabelTranslateSettingsConfigurable : Configurable {
             .sortedBy { it.displayLanguage } // Sort alphabetically by language name
 
         // Map languages to "Code - Name" format
-        val languageOptions = languages.map { "${it.language.toUpperCase()} - ${it.displayLanguage}" }
+        val languageOptions = languages.map { "${it.language.uppercase()} - ${it.displayLanguage}" }
 
         // Use IntelliJ's ComboBox instead of Swing's JComboBox
         languageComboBox = ComboBox(languageOptions.toTypedArray())

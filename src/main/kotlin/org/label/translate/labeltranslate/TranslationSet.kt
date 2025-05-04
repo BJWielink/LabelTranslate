@@ -6,7 +6,7 @@ import java.util.*
 
 data class TranslationSet(val displayName: String, val translationFiles: Collection<File>) {
     private val contentMap: SortedMap<String, LinkedHashMap<String, String>> by lazy {
-        val result = sortedMapOf<String, LinkedHashMap<String, String>>(compareBy { it.toLowerCase() })
+        val result = sortedMapOf<String, LinkedHashMap<String, String>>(compareBy { it.lowercase() })
 
         for (translationFile in translationFiles) {
             val languageKey = translationFile.parentFile.name
@@ -113,7 +113,7 @@ data class TranslationSet(val displayName: String, val translationFiles: Collect
 
             val result = mutableListOf<TranslationSet>()
             for ((name, files) in translationMap.entrySet()) {
-                val sortedFiles = files.sortedBy { it.parentFile.name.toLowerCase() }
+                val sortedFiles = files.sortedBy { it.parentFile.name.lowercase() }
                 result.add(TranslationSet(name.capitalize(), sortedFiles))
             }
 
