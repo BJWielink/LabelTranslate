@@ -114,7 +114,7 @@ data class TranslationSet(val displayName: String, val translationFiles: Collect
             val result = mutableListOf<TranslationSet>()
             for ((name, files) in translationMap.entrySet()) {
                 val sortedFiles = files.sortedBy { it.parentFile.name.lowercase() }
-                result.add(TranslationSet(name.capitalize(), sortedFiles))
+                result.add(TranslationSet(name.replaceFirstChar { it.uppercaseChar() }, sortedFiles))
             }
 
             return result
