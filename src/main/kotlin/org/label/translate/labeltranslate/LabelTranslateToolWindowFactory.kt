@@ -21,6 +21,7 @@ import java.awt.FlowLayout
 import java.awt.event.ActionEvent
 import java.awt.event.ItemEvent
 import java.awt.event.KeyEvent
+import java.io.File
 import java.io.IOException
 import javax.swing.*
 import javax.swing.table.DefaultTableModel
@@ -33,7 +34,7 @@ data class PreviousState(val scrollPosition: Int, val errorFilter: Boolean)
 class LabelTranslateToolWindowFactory : ToolWindowFactory {
     override fun createToolWindowContent(project: Project, toolWindow: ToolWindow) {
         // Load for *all* initial paths to create tabs:
-        for (initialPath in TranslationSet.RESOURCE_PATHS) {
+        for (initialPath in TranslationSet.getResourcePaths()) {
             val translationSets = TranslationSet.loadFromPath(project.basePath, initialPath)
             if (translationSets.isNotEmpty()) { // Handle cases where there might be no files
                 val translationSet = translationSets[0]
@@ -53,7 +54,6 @@ class LabelTranslateToolWindowContent(
     private var translationSet: TranslationSet, // Make translationSet mutable
     private val project: Project,
     private val toolWindow: ToolWindow,
-    private val previousState: PreviousState? = null
 ) {
     val contentPanel = JPanel()
     private val mutationObserver = MutationObserver()
@@ -61,9 +61,11 @@ class LabelTranslateToolWindowContent(
     private var sorter: TableRowSorter<TableModel>? = null
     private var scrollPane: JBScrollPane? = null
     private var currentPath: String = ""
+    val pathComboBox = ComboBox<String>()
 
     init {
         currentPath = translationSet.path
+        // Luister naar wijzigingen in settings via MessageBus
         contentPanel.layout = BorderLayout()
 
         table = createTable(translationSet)
@@ -167,8 +169,9 @@ class LabelTranslateToolWindowContent(
             buttonContainer.add(translateButton)
         }
 
-        val pathComboBox = ComboBox<String>()
-        TranslationSet.RESOURCE_PATHS.forEach { pathComboBox.addItem(it) }
+        val paths = listOf("resources/lang", "lang") + CustomFilePathConfig().folderPaths
+        paths.forEach { pathComboBox.addItem(it) }
+
         pathComboBox.selectedItem = currentPath
         pathComboBox.addActionListener {
             currentPath = pathComboBox.selectedItem as String
@@ -176,6 +179,18 @@ class LabelTranslateToolWindowContent(
         }
         buttonContainer.add(JLabel("Path: "))
         buttonContainer.add(pathComboBox)
+
+        // Luister naar wijzigingen in settings via MessageBus
+        com.intellij.openapi.application.ApplicationManager.getApplication().messageBus.connect().subscribe(
+            SettingsChangedNotifier.TOPIC,
+            object : SettingsChangedNotifier {
+                override fun onFolderPathsChanged() {
+                        pathComboBox.selectedItem = currentPath
+                        val currentContentManager = toolWindow.contentManager
+                        val selectedTabName = currentContentManager.selectedContent?.displayName
+                        reloadTranslationsForPath(currentPath, selectedTabName)
+                }
+            })
 
         val displayCheckbox = JBCheckBox("Errors")
         displayCheckbox.border = BorderFactory.createEmptyBorder(6, 0, 0, 0)
@@ -334,7 +349,6 @@ class LabelTranslateToolWindowContent(
     """.trimIndent()
 
         val requestBody: RequestBody = json.toRequestBody("application/json".toMediaTypeOrNull())
-
         val request = Request.Builder()
             .url("https://api.openai.com/v1/chat/completions")
             .post(requestBody)
@@ -416,7 +430,34 @@ class LabelTranslateToolWindowContent(
     }
 
     private fun reloadTranslationsForPath(path: String, keepSelectedTab: String? = null) {
-        val loadedTranslationSets = TranslationSet.loadFromPath(project.basePath, path)
+        val basePath = project.basePath
+        var translationRoot = if (File(path).isAbsolute) File(path) else File(basePath, path)
+
+        // Als het pad niet bestaat → verwijder uit comboBox en kies een ander
+        if (!translationRoot.exists()) {
+            // Haal alle geldige paths op
+            val validPaths = TranslationSet.getResourcePaths().filter {
+                val f = if (File(it).isAbsolute) File(it) else File(basePath, it)
+                f.exists()
+            }
+
+            // Haal de huidige selectie uit de comboBox
+            val currentIndex = pathComboBox.selectedIndex
+            pathComboBox.removeItem(path)
+
+            // Kies fallback path
+            val fallbackPath = validPaths.firstOrNull()
+            if (fallbackPath != null) {
+                pathComboBox.selectedItem = fallbackPath
+                currentPath = fallbackPath
+                translationRoot = if (File(fallbackPath).isAbsolute) File(fallbackPath) else File(basePath, fallbackPath)
+            } else {
+                JOptionPane.showMessageDialog(null, "No valid translation paths available.")
+                return
+            }
+        }
+
+        val loadedTranslationSets = TranslationSet.loadFromPath(basePath, translationRoot.path)
 
         if (loadedTranslationSets.isNotEmpty()) {
             toolWindow.contentManager.removeAllContents(true)
@@ -440,7 +481,7 @@ class LabelTranslateToolWindowContent(
                 }
             }
         } else {
-            JOptionPane.showMessageDialog(null, "No translations found for path: $path")
+            JOptionPane.showMessageDialog(null, "No translations found for path: ${translationRoot.path}")
         }
     }
 }

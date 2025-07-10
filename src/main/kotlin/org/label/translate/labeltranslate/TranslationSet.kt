@@ -69,7 +69,9 @@ data class TranslationSet(val displayName: String, val translationFiles: Collect
          * Location from root where we should look for resources / translation
          * files. Combines default resource paths and custom paths.
          */
-        val RESOURCE_PATHS = listOf("resources/lang", "lang") + CustomFilePathConfig().folderPaths
+        fun getResourcePaths(): List<String> {
+            return listOf("resources/lang", "lang") + CustomFilePathConfig().folderPaths
+        }
 
         /*
          * All files with this suffix and in the resource path, with exclusion of
