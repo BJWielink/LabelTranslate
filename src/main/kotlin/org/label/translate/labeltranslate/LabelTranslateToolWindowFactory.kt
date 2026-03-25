@@ -109,7 +109,7 @@ class LabelTranslateToolWindowContent(
         searchField.toolTipText = "Search by key or translation"
         searchField.addKeyListener(object : java.awt.event.KeyAdapter() {
             override fun keyReleased(e: KeyEvent) {
-                val searchText = searchField.text.trim().toLowerCase()
+                val searchText = searchField.text.trim().lowercase()
                 applyTableFilter(searchText)
             }
         })
@@ -214,7 +214,7 @@ class LabelTranslateToolWindowContent(
             object : RowFilter<TableModel, Int>() {
                 override fun include(entry: Entry<out TableModel, out Int>): Boolean {
                     for (i in 0 until entry.valueCount) {
-                        if (entry.getStringValue(i).toLowerCase().contains(searchText)) {
+                        if (entry.getStringValue(i).lowercase().contains(searchText)) {
                             return true
                         }
                     }
@@ -320,7 +320,7 @@ class LabelTranslateToolWindowContent(
         val languages = mutableListOf<String>()
         val totalLanguage = tableModel.columnCount - 1
         for (col in 0 until tableModel.columnCount) {
-            val columnName = tableModel.getColumnName(col).toUpperCase()
+            val columnName = tableModel.getColumnName(col).uppercase()
             if (columnName != "KEY" && columnName != getDefaultLang()) {
                 languages.add(columnName)
             }
@@ -391,7 +391,7 @@ class LabelTranslateToolWindowContent(
                                 val rowArray = arrayOfNulls<Any>(tableModel.columnCount)
 
                                 for (col in 0 until tableModel.columnCount) {
-                                    val columnName = tableModel.getColumnName(col).toUpperCase()
+                                    val columnName = tableModel.getColumnName(col).uppercase()
 
                                     when {
                                         columnName == "KEY" -> rowArray[col] = key

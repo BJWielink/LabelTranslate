@@ -26,7 +26,7 @@ class TranslateDialogWrapper : DialogWrapper(true) {
         keyField = JTextField()
         panel.add(keyField)
 
-        val defaultLanguageCode = DefaultLanguage().defaultLanguage.toUpperCase() // Ensure it's uppercase
+        val defaultLanguageCode = DefaultLanguage().defaultLanguage.uppercase() // Ensure it's uppercase
 
         // Create a locale for the region using forLanguageTag
         val countryLocale = Locale.forLanguageTag("und-" + defaultLanguageCode) // Region-only locale
