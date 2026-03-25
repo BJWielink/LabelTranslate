@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.0.1] - 2026-03-25
 
+### Fixed
+- **Hotfix: plugin UI language ignored settings** — buttons and labels now follow the language configured in Settings instead of the system locale; EN is always the fallback when no matching language file is available
+
 ### Added
 - **Duplicate key warning** — adding, renaming or auto-translating a key that already exists now shows a warning; the dialog stays open so the user can correct the key without re-entering everything
 
