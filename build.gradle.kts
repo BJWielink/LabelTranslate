@@ -5,10 +5,11 @@ plugins {
     id("java")
     id("org.jetbrains.kotlin.jvm") version "2.1.20"
     id("org.jetbrains.intellij.platform") version "2.5.0"
+    id("org.jetbrains.changelog") version "2.2.0"
 }
 
 group = "org.label.translate"
-version = "1.9-SNAPSHOT"
+version = "2.0.1"
 
 repositories {
     mavenCentral()
@@ -22,20 +23,15 @@ dependencies {
     implementation("com.google.code.gson:gson:2.8.9")
 
     intellijPlatform {
-        create("PS", "2025.1.0.1")
-        plugins(listOf(/* Plugin Dependencies */))
+        create("PS", "2024.2.1")
+        plugins(listOf())
     }
 }
 
 intellijPlatform {
-    pluginVerification {
-        ides {
-            ide(IntelliJPlatformType.PhpStorm, "2025.1.0.1")
-        }
-    }
     pluginConfiguration {
         ideaVersion {
-            sinceBuild = "222"
+            sinceBuild = "242"
             untilBuild = provider { null }
         }
     }
@@ -49,13 +45,38 @@ intellijPlatform {
     }
 }
 
+changelog {
+    version.set(project.version.toString())
+    groups.set(listOf("Added", "Fixed", "Changed", "Removed"))
+}
+
 tasks {
-    // Set the JVM compatibility versions
     withType<JavaCompile> {
-        sourceCompatibility = "21"
+        sourceCompatibility = "17"
         targetCompatibility = "17"
     }
     withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> {
         compilerOptions.jvmTarget.set(JvmTarget.JVM_17)
+    }
+
+    patchPluginXml {
+        changeNotes.set(provider {
+            with(changelog) {
+                renderItem(
+                    getOrNull(project.version.toString()) ?: getLatest(),
+                    org.jetbrains.changelog.Changelog.OutputType.HTML
+                )
+            }
+        })
+    }
+
+    signPlugin {
+        certificateChain.set(System.getenv("CERTIFICATE_CHAIN"))
+        privateKey.set(System.getenv("PRIVATE_KEY"))
+        password.set(System.getenv("PRIVATE_KEY_PASSWORD"))
+    }
+
+    publishPlugin {
+        token.set(System.getenv("PUBLISH_TOKEN"))
     }
 }
