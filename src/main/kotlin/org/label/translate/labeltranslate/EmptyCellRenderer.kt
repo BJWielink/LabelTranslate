@@ -17,6 +17,12 @@ class EmptyCellRenderer(private val mutationObserver: MutationObserver) : Defaul
     ): Component {
         val component = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column)
 
+        // Group header rijen niet inkleuren
+        val modelRow = table?.convertRowIndexToModel(row) ?: row
+        if ((table?.model as? GroupedTranslationTableModel)?.isGroupHeader(modelRow) == true) {
+            return component
+        }
+
         if (value !is String) {
             component.background = JBColor.decode("#5E3838")
             return component
@@ -28,9 +34,7 @@ class EmptyCellRenderer(private val mutationObserver: MutationObserver) : Defaul
             component.text = "<html><strike>${component.text}</strike></html>"
         }
 
-        if (mutationObserver.isMutatedCell(key, column)) {
-            component.background = JBColor.decode("#56925C")
-        } else if (mutationObserver.isMutatedRow(key)) {
+        if (mutationObserver.isModifiedRow(key)) {
             component.background = JBColor.decode("#56925C")
         }
 

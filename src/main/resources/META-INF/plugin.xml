@@ -40,7 +40,5 @@ z
         <!-- Registering the settings configurable -->
         <projectConfigurable instance="org.label.translate.labeltranslate.LabelTranslateSettingsConfigurable" />
     </extensions>
-    <change-notes>
-        * Fixed max token from not being saved
-    </change-notes>
+    <!-- change-notes worden automatisch ingevuld door de Gradle changelog plugin vanuit CHANGELOG.md -->
 </idea-plugin>

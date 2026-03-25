@@ -1,30 +1,49 @@
 package org.label.translate.labeltranslate
 
 import java.io.File
-import java.util.*
 
 data class TranslationSet(val displayName: String, val translationFiles: Collection<File>, val path: String) {
-    private val contentMap: SortedMap<String, LinkedHashMap<String, String>> by lazy {
-        val result = sortedMapOf<String, LinkedHashMap<String, String>>(compareBy { it.toLowerCase() })
+    private val contentMap: HashMap<String, Map<String, String>> by lazy {
+        val result = HashMap<String, Map<String, String>>()
 
         for (translationFile in translationFiles) {
             val languageKey = translationFile.parentFile.name
-            val translationMap = linkedMapOf<String, String>()
-            translationFile.forEachLine {
-                val matchResults = KEY_VALUE_PAIR_REGEX.findAll(it)
-                if (matchResults.count() == 2) {
-                    var translationKey = matchResults.elementAt(0).value
-                    translationKey = parse(translationKey)
-                    var translationValue = matchResults.elementAt(1).value
-                    translationValue = parse(translationValue)
-                    translationMap[translationKey] = translationValue
-                }
-            }
+            val translationMap = mutableMapOf<String, String>()
+
+            val content = translationFile.readText()
+            val arrayContent = content.substringAfter("return [").substringBeforeLast("];").trim()
+
+            val nestedMap = parsePhpArray(arrayContent)
+            translationMap.putAll(flattenMap(nestedMap))
+
             result[languageKey] = translationMap
         }
 
         result
     }
+
+
+    //    private val contentMap: SortedMap<String, LinkedHashMap<String, String>> by lazy {
+//        val result = sortedMapOf<String, LinkedHashMap<String, String>>(compareBy { it.toLowerCase() })
+//
+//        for (translationFile in translationFiles) {
+//            val languageKey = translationFile.parentFile.name
+//            val translationMap = linkedMapOf<String, String>()
+//            translationFile.forEachLine {
+//                val matchResults = KEY_VALUE_PAIR_REGEX.findAll(it)
+//                if (matchResults.count() == 2) {
+//                    var translationKey = matchResults.elementAt(0).value
+//                    translationKey = parse(translationKey)
+//                    var translationValue = matchResults.elementAt(1).value
+//                    translationValue = parse(translationValue)
+//                    translationMap[translationKey] = translationValue
+//                }
+//            }
+//            result[languageKey] = translationMap
+//        }
+//
+//        result
+//    }
 
     private fun parse(input: String): String {
         // Remove quotation marks from regex obtained values
@@ -63,6 +82,7 @@ data class TranslationSet(val displayName: String, val translationFiles: Collect
         }
         return keys.sortedWith(String.CASE_INSENSITIVE_ORDER)
     }
+
 
     companion object {
         /*
@@ -105,10 +125,72 @@ data class TranslationSet(val displayName: String, val translationFiles: Collect
             }
 
             return allFilesPerName.map { (name, files) ->
-                val sortedFiles = files.sortedBy { it.parentFile.name.toLowerCase() }
-                TranslationSet(name.capitalize(), sortedFiles, path)
+                val sortedFiles = files.sortedBy { it.parentFile.name.lowercase() }
+                TranslationSet(name.replaceFirstChar { it.uppercaseChar() }, sortedFiles, path)
             }
         }
-
     }
+    // Utility function to flatten nested maps
+    private fun flattenMap(map: Map<String, Any>, prefix: String = ""): Map<String, String> {
+        val flatMap = mutableMapOf<String, String>()
+        for ((key, value) in map) {
+            val fullKey = if (prefix.isEmpty()) key else "$prefix.$key"
+            when (value) {
+                is Map<*, *> -> {
+                    @Suppress("UNCHECKED_CAST")
+                    flatMap.putAll(flattenMap(value as Map<String, Any>, fullKey))
+                }
+                else -> flatMap[fullKey] = value.toString()
+            }
+        }
+        return flatMap
+    }
+
+    private fun parsePhpArray(input: String): Map<String, Any> {
+        // (?:[^'\\]|\\.)* handles escaped single quotes (\') and backslashes (\\) inside strings
+        val tokenizer = Regex("""'((?:[^'\\]|\\.)*)'[ \t]*=>|\[|\]|'((?:[^'\\]|\\.)*)'|,""")
+        val tokens = tokenizer.findAll(input).map { it.value.trim() }.filter { it.isNotEmpty() }.toList()
+        var index = 0
+
+        fun unescape(s: String) = s.replace("\\'", "'").replace("\\\\", "\\")
+
+        fun parse(): Map<String, Any> {
+            val result = mutableMapOf<String, Any>()
+            var currentKey: String? = null
+
+            while (index < tokens.size) {
+                val token = tokens[index++]
+
+                when {
+                    token == "[" -> {
+                        val nested = parse()
+                        if (currentKey != null) {
+                            result[currentKey] = nested
+                            currentKey = null
+                        }
+                    }
+                    token == "]" -> return result
+                    token.endsWith("=>") -> {
+                        currentKey = unescape(token.removeSuffix("=>").trim().removeSurrounding("'"))
+                    }
+                    token.startsWith("'") && token.endsWith("'") && token.length >= 2 -> {
+                        val value = unescape(token.removeSurrounding("'"))
+                        if (currentKey != null) {
+                            result[currentKey] = value
+                            currentKey = null
+                        }
+                    }
+                    else -> {
+                        // Commas en onbekende tokens negeren
+                    }
+                }
+            }
+
+            return result
+        }
+
+        return parse()
+    }
+
+
 }

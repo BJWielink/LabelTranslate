@@ -26,7 +26,22 @@ class DefaultLanguage {
         }
 }
 
-//todo this is for later
+class RecentLanguagesConfig {
+    private val properties = PropertiesComponent.getInstance()
+
+    var recentLanguages: List<String>
+        get() = properties.getValue("label_translate.recent_languages", "")
+            .split(";").filter { it.isNotBlank() }
+        set(value) {
+            properties.setValue("label_translate.recent_languages", value.joinToString(";"))
+        }
+
+    fun push(langOption: String) {
+        val updated = (listOf(langOption) + recentLanguages.filter { it != langOption }).take(5)
+        recentLanguages = updated
+    }
+}
+
 class CustomFilePathConfig {
     private val properties = PropertiesComponent.getInstance()
 

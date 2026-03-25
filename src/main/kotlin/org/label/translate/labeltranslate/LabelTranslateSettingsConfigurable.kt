@@ -76,7 +76,7 @@ class LabelTranslateSettingsConfigurable : Configurable {
             .distinctBy { it.language }
             .sortedBy { it.displayLanguage }
 
-        val languageOptions = languages.map { "${it.language.toUpperCase()} - ${it.displayLanguage}" }
+        val languageOptions = languages.map { "${it.language.uppercase()} - ${it.displayLanguage}" }
         languageComboBox = ComboBox(languageOptions.toTypedArray())
 
         val defaultKey = defaultLanguage.defaultLanguage.ifEmpty { "EN" }
