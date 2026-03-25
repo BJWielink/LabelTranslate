@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [2.0.1] - 2026-03-25
+## [2.0.2] - 2026-03-25
 
 ### Fixed
 - **Hotfix: plugin UI language ignored settings** — buttons and labels now follow the language configured in Settings instead of the system locale; EN is always the fallback when no matching language file is available
