@@ -15,8 +15,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - **Error filter state preserved** — the "Show errors" checkbox no longer resets after clicking Refresh or Save; the active state is carried over to the reloaded view
 
-## [2.0.0] - 2026-03-25
-
 ### Added
 - **Hierarchical key display** — nested translation keys (e.g. `auth.user.name`) now show collapsible group headers with indentation at every level
 - **Group rename** — right-click a group header to rename the entire group; all keys underneath are renamed automatically
