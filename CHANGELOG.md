@@ -7,10 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Coming soon
+- **Blade file integration** — right-click on a `__()`, `@lang()` or similar translation helper in a Blade file to create or edit the corresponding translation label directly from the editor, without switching to the translation tool window
+
 ## [2.0.3] - 2026-03-27
 
 ### Added
-- **Configurable key separator** — the separator used to detect and display hierarchical translation keys is now configurable in Settings (default: `->`); flat PHP keys such as `'main.activity_log'` are no longer incorrectly treated as nested keys when a non-dot separator is configured
+- **Configurable key separator** — the separator used to detect and display hierarchical translation keys is now configurable in Settings (default: `->`);
 - **Smart group ordering** — group headers are now sorted alphabetically among flat keys in their namespace, appearing directly above their hierarchical children rather than at the top of the entire section
 - **Nested row highlighting** — hierarchical translation rows (keys containing the configured separator) now have a distinct light grey background to visually distinguish them from flat keys
 - **Duplicate key warning** — adding, renaming or auto-translating a key that already exists now shows a warning; the dialog stays open so the user can correct the key without re-entering everything
