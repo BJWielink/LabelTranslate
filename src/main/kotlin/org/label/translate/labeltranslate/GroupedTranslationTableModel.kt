@@ -3,6 +3,8 @@ package org.label.translate.labeltranslate
 import javax.swing.table.AbstractTableModel
 
 class GroupedTranslationTableModel(private val columnNames: Array<String>) : AbstractTableModel() {
+    private val sep get() = SeparatorConfig().separator
+
 
     sealed class Row {
         data class GroupHeader(val prefix: String) : Row()
@@ -16,9 +18,9 @@ class GroupedTranslationTableModel(private val columnNames: Array<String>) : Abs
         val shownPrefixes = mutableSetOf<String>()
 
         for (key in translationSet.getKeys()) {
-            val parts = key.split('.')
+            val parts = key.split(sep)
             for (depth in 1 until parts.size) {
-                val prefix = parts.take(depth).joinToString(".")
+                val prefix = parts.take(depth).joinToString(sep)
                 if (shownPrefixes.add(prefix)) {
                     rows.add(Row.GroupHeader(prefix))
                 }
@@ -37,7 +39,7 @@ class GroupedTranslationTableModel(private val columnNames: Array<String>) : Abs
 
     override fun getValueAt(rowIndex: Int, columnIndex: Int): Any {
         return when (val row = rows.getOrNull(rowIndex)) {
-            is Row.GroupHeader -> if (columnIndex == 0) row.prefix else ""
+            is Row.GroupHeader -> if (columnIndex == 0) "\u0001${row.prefix}" else ""
             is Row.DataRow -> if (columnIndex == 0) row.fullKey else row.values.getOrElse(columnIndex - 1) { "" } ?: ""
             null -> ""
         }
@@ -66,7 +68,7 @@ class GroupedTranslationTableModel(private val columnNames: Array<String>) : Abs
 
     fun getKeysForPrefix(prefix: String): List<String> =
         rows.filterIsInstance<Row.DataRow>()
-            .filter { it.fullKey.startsWith("$prefix.") }
+            .filter { it.fullKey.startsWith("$prefix$sep") }
             .map { it.fullKey }
 
     fun renameGroup(oldPrefix: String, newPrefix: String) {
@@ -75,10 +77,10 @@ class GroupedTranslationTableModel(private val columnNames: Array<String>) : Abs
                 is Row.GroupHeader -> when {
                     row.prefix == oldPrefix ->
                         rows[i] = Row.GroupHeader(newPrefix)
-                    row.prefix.startsWith("$oldPrefix.") ->
+                    row.prefix.startsWith("$oldPrefix$sep") ->
                         rows[i] = Row.GroupHeader(newPrefix + row.prefix.substring(oldPrefix.length))
                 }
-                is Row.DataRow -> if (row.fullKey.startsWith("$oldPrefix."))
+                is Row.DataRow -> if (row.fullKey.startsWith("$oldPrefix$sep"))
                     rows[i] = Row.DataRow(newPrefix + row.fullKey.substring(oldPrefix.length), row.values)
             }
         }
@@ -93,14 +95,14 @@ class GroupedTranslationTableModel(private val columnNames: Array<String>) : Abs
         fireTableRowsDeleted(rowIdx, rowIdx)
 
         // Verwijder lege groep-headers van diepste naar ondiepste
-        val oldParts = oldKey.split('.')
+        val oldParts = oldKey.split(sep)
         for (depth in oldParts.size - 1 downTo 1) {
-            val prefix = oldParts.take(depth).joinToString(".")
+            val prefix = oldParts.take(depth).joinToString(sep)
             val headerIdx = rows.indexOfFirst { it is Row.GroupHeader && (it as Row.GroupHeader).prefix == prefix }
             if (headerIdx >= 0) {
                 val hasChildren = rows.any { r ->
-                    (r is Row.GroupHeader && r.prefix.startsWith("$prefix.")) ||
-                    (r is Row.DataRow && r.fullKey.startsWith("$prefix."))
+                    (r is Row.GroupHeader && r.prefix.startsWith("$prefix$sep")) ||
+                    (r is Row.DataRow && r.fullKey.startsWith("$prefix$sep"))
                 }
                 if (!hasChildren) {
                     rows.removeAt(headerIdx)
@@ -113,7 +115,7 @@ class GroupedTranslationTableModel(private val columnNames: Array<String>) : Abs
     }
 
     fun addDataRow(key: String, initialValues: Array<Any?> = arrayOfNulls(columnNames.size - 1)) {
-        val parts = key.split('.')
+        val parts = key.split(sep)
         val newRow = Row.DataRow(key, initialValues.copyOf(columnNames.size - 1))
 
         if (parts.size == 1) {
@@ -122,7 +124,7 @@ class GroupedTranslationTableModel(private val columnNames: Array<String>) : Abs
             return
         }
 
-        val prefixChain = (1 until parts.size).map { parts.take(it).joinToString(".") }
+        val prefixChain = (1 until parts.size).map { parts.take(it).joinToString(sep) }
 
         // Zoek de diepste bestaande prefix-header
         var deepestMatchDepth = 0
@@ -135,8 +137,8 @@ class GroupedTranslationTableModel(private val columnNames: Array<String>) : Abs
                 insertAt = idx + 1
                 while (insertAt < rows.size) {
                     val r = rows[insertAt]
-                    val belongs = (r is Row.GroupHeader && r.prefix.startsWith("$prefix.")) ||
-                                  (r is Row.DataRow && r.fullKey.startsWith("$prefix."))
+                    val belongs = (r is Row.GroupHeader && r.prefix.startsWith("$prefix$sep")) ||
+                                  (r is Row.DataRow && r.fullKey.startsWith("$prefix$sep"))
                     if (belongs) insertAt++ else break
                 }
                 break

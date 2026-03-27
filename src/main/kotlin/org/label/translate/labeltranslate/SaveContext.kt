@@ -69,9 +69,10 @@ class SaveContext(private val translationSet: TranslationSet, private val mutati
     }
 
     private fun unflattenMap(flatMap: Map<String, String>): Map<String, Any> {
+        val sep = SeparatorConfig().separator
         val result = mutableMapOf<String, Any>()
         for ((compoundKey, value) in flatMap) {
-            val parts = compoundKey.split(".")
+            val parts = compoundKey.split(sep)
             var current = result
             for ((i, part) in parts.withIndex()) {
                 if (i == parts.lastIndex) {

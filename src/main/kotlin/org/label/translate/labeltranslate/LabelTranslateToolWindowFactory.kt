@@ -345,8 +345,16 @@ class LabelTranslateToolWindowContent(
         }
 
         sorter = TableRowSorter(tableModel)
-        // Sleutelkolom niet handmatig sorteerbaar zodat groepen bij elkaar blijven
         sorter?.setSortable(0, false)
+        sorter?.setComparator(0, Comparator { a: Any, b: Any ->
+            val sep = SeparatorConfig().separator
+            fun sortKey(s: String): String = when {
+                s.startsWith("\u0001") -> s.substring(1).replace(sep, "\uFFFF") + "\uFFFF"
+                s.contains(sep) -> s.replace(sep, "\uFFFF")
+                else -> s
+            }
+            sortKey(a.toString()).compareTo(sortKey(b.toString()), ignoreCase = true)
+        })
         table.rowSorter = sorter
         sorter?.sortKeys = listOf(RowSorter.SortKey(0, SortOrder.ASCENDING))
 
@@ -381,15 +389,16 @@ class LabelTranslateToolWindowContent(
                     // Groep-header rij: groep hernoemen
                     val renameGroupItem = JMenuItem(PluginI18n.t("menu.rename_group"))
                     renameGroupItem.addActionListener {
-                        val lastDot = groupPrefix.lastIndexOf('.')
-                        val parentPrefix = if (lastDot >= 0) groupPrefix.substring(0, lastDot) else ""
-                        val currentSegment = groupPrefix.substring(lastDot + 1)
+                        val sep = SeparatorConfig().separator
+                        val lastSep = groupPrefix.lastIndexOf(sep)
+                        val parentPrefix = if (lastSep >= 0) groupPrefix.substring(0, lastSep) else ""
+                        val currentSegment = if (lastSep >= 0) groupPrefix.substring(lastSep + sep.length) else groupPrefix
 
                         val newSegment = javax.swing.JOptionPane.showInputDialog(
                             table, PluginI18n.t("dialog.rename_group.prompt"), currentSegment
                         )?.trim() ?: return@addActionListener
 
-                        val newPrefix = if (parentPrefix.isEmpty()) newSegment else "$parentPrefix.$newSegment"
+                        val newPrefix = if (parentPrefix.isEmpty()) newSegment else "$parentPrefix$sep$newSegment"
                         if (newSegment.isNotBlank() && newPrefix != groupPrefix) {
                             tableModel.getKeysForPrefix(groupPrefix).forEach { key ->
                                 val newKey = newPrefix + key.substring(groupPrefix.length)
@@ -408,9 +417,10 @@ class LabelTranslateToolWindowContent(
                 val renameItem = JMenuItem(PluginI18n.t("menu.rename_key"))
                 renameItem.addActionListener {
                     val groups = tableModel.getGroupNames()
-                    val lastDot = key.lastIndexOf('.')
-                    val initialGroup = if (lastDot >= 0) key.substring(0, lastDot) else ""
-                    val initialSubKey = if (lastDot >= 0) key.substring(lastDot + 1) else key
+                    val sep = SeparatorConfig().separator
+                    val lastSep = key.lastIndexOf(sep)
+                    val initialGroup = if (lastSep >= 0) key.substring(0, lastSep) else ""
+                    val initialSubKey = if (lastSep >= 0) key.substring(lastSep + sep.length) else key
                     val dialog = AddDialogWrapper(
                         existingGroups = groups,
                         initialGroup = initialGroup,

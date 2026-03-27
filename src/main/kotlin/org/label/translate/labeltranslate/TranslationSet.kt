@@ -131,14 +131,14 @@ data class TranslationSet(val displayName: String, val translationFiles: Collect
         }
     }
     // Utility function to flatten nested maps
-    private fun flattenMap(map: Map<String, Any>, prefix: String = ""): Map<String, String> {
+    private fun flattenMap(map: Map<String, Any>, prefix: String = "", sep: String = SeparatorConfig().separator): Map<String, String> {
         val flatMap = mutableMapOf<String, String>()
         for ((key, value) in map) {
-            val fullKey = if (prefix.isEmpty()) key else "$prefix.$key"
+            val fullKey = if (prefix.isEmpty()) key else "$prefix$sep$key"
             when (value) {
                 is Map<*, *> -> {
                     @Suppress("UNCHECKED_CAST")
-                    flatMap.putAll(flattenMap(value as Map<String, Any>, fullKey))
+                    flatMap.putAll(flattenMap(value as Map<String, Any>, fullKey, sep))
                 }
                 else -> flatMap[fullKey] = value.toString()
             }

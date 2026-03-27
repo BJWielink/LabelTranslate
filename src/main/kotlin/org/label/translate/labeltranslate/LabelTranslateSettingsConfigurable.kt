@@ -17,11 +17,14 @@ class LabelTranslateSettingsConfigurable : Configurable {
     private lateinit var folderList: JList<String> // List component for displaying folder paths
     private lateinit var addFolderButton: JButton
     private lateinit var removeFolderButton: JButton
+    private lateinit var separatorField: JTextField
+    private lateinit var separatorConfig: SeparatorConfig
 
     override fun createComponent(): JComponent {
         apiKeyConfig = ApiKeyConfig()
         defaultLanguage = DefaultLanguage()
         customFilePathConfig = CustomFilePathConfig()
+        separatorConfig = SeparatorConfig()
 
         val mainPanel = JPanel()
         mainPanel.layout = BoxLayout(mainPanel, BoxLayout.Y_AXIS)
@@ -32,6 +35,8 @@ class LabelTranslateSettingsConfigurable : Configurable {
         mainPanel.add(createMaxTokenSection())
         mainPanel.add(Box.createRigidArea(java.awt.Dimension(0, 20)))
         mainPanel.add(createLanguageDropdownSection())
+        mainPanel.add(Box.createRigidArea(java.awt.Dimension(0, 20)))
+        mainPanel.add(createSeparatorSection())
         mainPanel.add(Box.createRigidArea(java.awt.Dimension(0, 20)))
         mainPanel.add(createCustomFolderSection())
 
@@ -91,6 +96,20 @@ class LabelTranslateSettingsConfigurable : Configurable {
         return languagePanel
     }
 
+    private fun createSeparatorSection(): JPanel {
+        val separatorPanel = JPanel()
+        separatorPanel.layout = BoxLayout(separatorPanel, BoxLayout.Y_AXIS)
+        separatorPanel.add(JLabel("Key Separator:"))
+
+        separatorField = JTextField(separatorConfig.separator, 20)
+        separatorField.minimumSize = java.awt.Dimension(400, 40)
+        separatorField.maximumSize = java.awt.Dimension(400, 40)
+        separatorPanel.add(separatorField)
+
+        separatorPanel.alignmentX = Component.LEFT_ALIGNMENT
+        return separatorPanel
+    }
+
     private fun createCustomFolderSection(): JPanel {
         val folderPanel = JPanel()
         folderPanel.layout = BoxLayout(folderPanel, BoxLayout.Y_AXIS)
@@ -139,6 +158,7 @@ class LabelTranslateSettingsConfigurable : Configurable {
         return apiKeyField.text != apiKeyConfig.apiKey ||
                 tokenField.text != apiKeyConfig.maxTokens ||
                 languageComboBox.selectedItem.toString().substringBefore(" -") != defaultLanguage.defaultLanguage ||
+                separatorField.text != separatorConfig.separator ||
                 !customFilePathConfig.folderPaths.containsAll(folderListModel.elements().toList()) ||
                 !folderListModel.elements().toList().containsAll(customFilePathConfig.folderPaths)
     }
@@ -147,6 +167,7 @@ class LabelTranslateSettingsConfigurable : Configurable {
         apiKeyConfig.apiKey = apiKeyField.text
         apiKeyConfig.maxTokens = tokenField.text
         defaultLanguage.defaultLanguage = languageComboBox.selectedItem.toString().substringBefore(" -")
+        separatorConfig.separator = separatorField.text.ifBlank { "->" }
         customFilePathConfig.folderPaths = folderListModel.elements().toList()
 
         val bus = com.intellij.openapi.application.ApplicationManager.getApplication().messageBus
@@ -160,6 +181,7 @@ class LabelTranslateSettingsConfigurable : Configurable {
             .find { it.startsWith("${defaultLanguage.defaultLanguage} -") } ?: "EN - English"
         languageComboBox.selectedItem = defaultOption
 
+        separatorField.text = separatorConfig.separator
         folderListModel.clear()
         customFilePathConfig.folderPaths.forEach { folderListModel.addElement(it) }
     }

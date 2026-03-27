@@ -53,3 +53,12 @@ class CustomFilePathConfig {
             properties.setValue("label_translate.folder_paths", value.joinToString(";")) // Serialize as ";" delimited string
         }
 }
+
+class SeparatorConfig {
+    private val properties = PropertiesComponent.getInstance()
+    var separator: String
+        get() = properties.getValue("label_translate.separator", "->")
+        set(value) {
+            properties.setValue("label_translate.separator", value)
+        }
+}

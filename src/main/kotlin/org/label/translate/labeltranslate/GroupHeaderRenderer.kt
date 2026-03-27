@@ -17,9 +17,11 @@ class GroupHeaderRenderer : DefaultTableCellRenderer() {
         row: Int,
         column: Int
     ): Component {
-        val prefix = value as? String ?: ""
-        val depth = prefix.count { it == '.' }
-        val displayText = "    ".repeat(depth) + prefix.substringAfterLast('.')
+        val raw = value as? String ?: ""
+        val prefix = if (raw.startsWith("\u0001")) raw.substring(1) else raw
+        val sep = SeparatorConfig().separator
+        val depth = prefix.split(sep).size - 1
+        val displayText = "    ".repeat(depth) + prefix.substringAfterLast(sep)
         val comp = super.getTableCellRendererComponent(table, displayText, isSelected, hasFocus, row, column)
         if (!isSelected) {
             comp.background = UIManager.getColor("TableHeader.background")
@@ -43,12 +45,16 @@ class KeyCellRenderer(private val mutationObserver: MutationObserver) : DefaultT
         column: Int
     ): Component {
         val fullKey = value as? String ?: ""
-        val depth = fullKey.count { it == '.' }
-        val displayText = if ('.' in fullKey) "    ".repeat(depth) + fullKey.substringAfterLast('.') else fullKey
+        val sep = SeparatorConfig().separator
+        val depth = fullKey.split(sep).size - 1
+        val displayText = if (sep in fullKey) "    ".repeat(depth) + fullKey.substringAfterLast(sep) else fullKey
 
         val comp = super.getTableCellRendererComponent(table, displayText, isSelected, hasFocus, row, column)
 
         if (!isSelected) {
+            if (sep in fullKey) {
+                comp.background = JBColor(java.awt.Color(0xF0F0F0), java.awt.Color(0x3A3A3A))
+            }
             if (mutationObserver.isModifiedRow(fullKey)) {
                 comp.background = JBColor.decode("#56925C")
             }
