@@ -44,10 +44,11 @@ class TranslateDialogWrapper(
         get() {
             val group = (groupComboBox.editor?.item as? String)?.trim() ?: ""
             val sub = keyField.text.trim()
+            val sep = SeparatorConfig().separator
             return when {
                 group.isEmpty() || group == NONE -> sub
                 sub.isEmpty() -> group
-                else -> "$group.$sub"
+                else -> "$group$sep$sub"
             }
         }
 

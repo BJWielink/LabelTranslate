@@ -7,19 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [2.0.2] - 2026-03-25
-
-### Fixed
-- **Hotfix: plugin UI language ignored settings** — buttons and labels now follow the language configured in Settings instead of the system locale; EN is always the fallback when no matching language file is available
+## [2.0.3] - 2026-03-27
 
 ### Added
+- **Configurable key separator** — the separator used to detect and display hierarchical translation keys is now configurable in Settings (default: `->`); flat PHP keys such as `'main.activity_log'` are no longer incorrectly treated as nested keys when a non-dot separator is configured
+- **Smart group ordering** — group headers are now sorted alphabetically among flat keys in their namespace, appearing directly above their hierarchical children rather than at the top of the entire section
 - **Duplicate key warning** — adding, renaming or auto-translating a key that already exists now shows a warning; the dialog stays open so the user can correct the key without re-entering everything
-
-### Fixed
-- **Error filter state preserved** — the "Show errors" checkbox no longer resets after clicking Refresh or Save; the active state is carried over to the reloaded view
-
-### Added
-- **Hierarchical key display** — nested translation keys (e.g. `auth.user.name`) now show collapsible group headers with indentation at every level
+- **Hierarchical key display** — nested translation keys (e.g. `auth->user->name`) now show group headers with indentation at every level
 - **Group rename** — right-click a group header to rename the entire group; all keys underneath are renamed automatically
 - **Plugin UI translations (i18n)** — all buttons, labels and dialogs are now translatable via `/lang/en.json` and `/lang/nl.json`; new languages can be added by dropping in a JSON file
 - **Auto-reload on file change** — translation tables refresh automatically when `.php` files in the translation folder change on disk (e.g. after switching git branches); uses a 500 ms debounce to handle bulk changes
@@ -29,6 +23,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Row highlighting** — any modified row (value edit, key rename, or newly added) is highlighted green so unsaved changes are always visible
 
 ### Fixed
+- **Plugin UI language ignored settings** — buttons and labels now follow the language configured in Settings instead of the system locale; EN is always the fallback when no matching language file is available
+- **Error filter state preserved** — the "Show errors" checkbox no longer resets after clicking Refresh or Save; the active state is carried over to the reloaded view
+- **First load** — all translation files (auth, messages, validation, …) now load immediately on startup; previously only the first file per folder was shown until Refresh was clicked
+- **Wrong source language in translation** — the Translate dialog now uses the language selected in the dropdown instead of always defaulting to the language configured in Settings
+- **Group rename shows full path** — renaming a group now shows only the last segment (e.g. `user` instead of `auth->user`) in the input field
+
+## [2.0.2] - 2026-03-25
+
+### Fixed
+- **Hotfix: plugin UI language ignored settings** — buttons and labels now follow the language configured in Settings instead of the system locale; EN is always the fallback when no matching language file is available
+
+### Added
+- **Duplicate key warning** — adding, renaming or auto-translating a key that already exists now shows a warning; the dialog stays open so the user can correct the key without re-entering everything
+- **Hierarchical key display** — nested translation keys (e.g. `auth.user.name`) now show group headers with indentation at every level
+- **Group rename** — right-click a group header to rename the entire group; all keys underneath are renamed automatically
+- **Plugin UI translations (i18n)** — all buttons, labels and dialogs are now translatable via `/lang/en.json` and `/lang/nl.json`; new languages can be added by dropping in a JSON file
+- **Auto-reload on file change** — translation tables refresh automatically when `.php` files in the translation folder change on disk (e.g. after switching git branches); uses a 500 ms debounce to handle bulk changes
+- **Language dropdown in Translate dialog** — source language is now a searchable dropdown instead of a fixed label, pre-selected to the default language from Settings
+- **Recent languages** — the Translate dialog shows the last 5 used languages at the top of the language dropdown for quick access
+- **Spelling correction** — the source language word is now also sent to OpenAI so it is returned spelling-corrected in the response
+- **Row highlighting** — any modified row (value edit, key rename, or newly added) is highlighted green so unsaved changes are always visible
+
+### Fixed
+- **Error filter state preserved** — the "Show errors" checkbox no longer resets after clicking Refresh or Save; the active state is carried over to the reloaded view
 - **First load** — all translation files (auth, messages, validation, …) now load immediately on startup; previously only the first file per folder was shown until Refresh was clicked
 - **Wrong source language in translation** — the Translate dialog now uses the language selected in the dropdown instead of always defaulting to the language configured in Settings
 - **Group rename shows full path** — renaming a group now shows only the last segment (e.g. `user` instead of `auth.user`) in the input field

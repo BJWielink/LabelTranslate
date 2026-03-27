@@ -30,15 +30,16 @@ class AddDialogWrapper(
     private val keyField = JBTextField()
     private val previewLabel = JBLabel()
 
-    /** De volledige key die wordt aangemaakt, bijv. "between.numeric" of "accepted" */
+    /** De volledige key die wordt aangemaakt, bijv. "between->numeric" of "accepted" */
     val fullKey: String
         get() {
             val group = (groupComboBox.editor?.item as? String)?.trim() ?: ""
             val sub = keyField.text.trim()
+            val sep = SeparatorConfig().separator
             return when {
                 group.isEmpty() || group == NONE -> sub
                 sub.isEmpty() -> group
-                else -> "$group.$sub"
+                else -> "$group$sep$sub"
             }
         }
 
