@@ -52,6 +52,9 @@ class KeyCellRenderer(private val mutationObserver: MutationObserver) : DefaultT
         val comp = super.getTableCellRendererComponent(table, displayText, isSelected, hasFocus, row, column)
 
         if (!isSelected) {
+            if (sep in fullKey) {
+                comp.background = JBColor(java.awt.Color(0xF0F0F0), java.awt.Color(0x3A3A3A))
+            }
             if (mutationObserver.isModifiedRow(fullKey)) {
                 comp.background = JBColor.decode("#56925C")
             }

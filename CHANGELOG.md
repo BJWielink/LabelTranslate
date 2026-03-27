@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - **Configurable key separator** — the separator used to detect and display hierarchical translation keys is now configurable in Settings (default: `->`); flat PHP keys such as `'main.activity_log'` are no longer incorrectly treated as nested keys when a non-dot separator is configured
 - **Smart group ordering** — group headers are now sorted alphabetically among flat keys in their namespace, appearing directly above their hierarchical children rather than at the top of the entire section
+- **Nested row highlighting** — hierarchical translation rows (keys containing the configured separator) now have a distinct light grey background to visually distinguish them from flat keys
 - **Duplicate key warning** — adding, renaming or auto-translating a key that already exists now shows a warning; the dialog stays open so the user can correct the key without re-entering everything
 - **Hierarchical key display** — nested translation keys (e.g. `auth->user->name`) now show group headers with indentation at every level
 - **Group rename** — right-click a group header to rename the entire group; all keys underneath are renamed automatically
