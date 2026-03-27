@@ -27,6 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Row highlighting** — any modified row (value edit, key rename, or newly added) is highlighted green so unsaved changes are always visible
 
 ### Fixed
+- **Double-quoted PHP keys and values now parsed** — translation entries using `"double quotes"` instead of `'single quotes'` are now loaded correctly; they are automatically converted to single quotes on the first save for consistency
 - **Plugin UI language ignored settings** — buttons and labels now follow the language configured in Settings instead of the system locale; EN is always the fallback when no matching language file is available
 - **Error filter state preserved** — the "Show errors" checkbox no longer resets after clicking Refresh or Save; the active state is carried over to the reloaded view
 - **First load** — all translation files (auth, messages, validation, …) now load immediately on startup; previously only the first file per folder was shown until Refresh was clicked

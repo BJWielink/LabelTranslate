@@ -147,12 +147,27 @@ data class TranslationSet(val displayName: String, val translationFiles: Collect
     }
 
     private fun parsePhpArray(input: String): Map<String, Any> {
-        // (?:[^'\\]|\\.)* handles escaped single quotes (\') and backslashes (\\) inside strings
-        val tokenizer = Regex("""'((?:[^'\\]|\\.)*)'[ \t]*=>|\[|\]|'((?:[^'\\]|\\.)*)'|,""")
+        // Matches both single- and double-quoted strings, optionally followed by =>
+        val sq = """'(?:[^'\\]|\\.)*'"""
+        val dq = """"(?:[^"\\]|\\.)*""""
+        val tokenizer = Regex("""(?:$sq|$dq)[ \t]*=>|\[|\]|(?:$sq|$dq)|,""")
         val tokens = tokenizer.findAll(input).map { it.value.trim() }.filter { it.isNotEmpty() }.toList()
         var index = 0
 
-        fun unescape(s: String) = s.replace("\\'", "'").replace("\\\\", "\\")
+        fun unescape(s: String) = s.replace("\\'", "'").replace("\\\\", "\\").replace("\\\"", "\"")
+
+        fun extractString(token: String): String {
+            val t = token.trim()
+            return when {
+                t.length >= 2 && t.startsWith("'") && t.endsWith("'") -> unescape(t.substring(1, t.length - 1))
+                t.length >= 2 && t.startsWith('"') && t.endsWith('"') -> unescape(t.substring(1, t.length - 1))
+                else -> t
+            }
+        }
+
+        fun isQuotedString(token: String) =
+            (token.startsWith("'") && token.endsWith("'") && token.length >= 2) ||
+            (token.startsWith('"') && token.endsWith('"') && token.length >= 2)
 
         fun parse(): Map<String, Any> {
             val result = mutableMapOf<String, Any>()
@@ -171,10 +186,10 @@ data class TranslationSet(val displayName: String, val translationFiles: Collect
                     }
                     token == "]" -> return result
                     token.endsWith("=>") -> {
-                        currentKey = unescape(token.removeSuffix("=>").trim().removeSurrounding("'"))
+                        currentKey = extractString(token.removeSuffix("=>").trim())
                     }
-                    token.startsWith("'") && token.endsWith("'") && token.length >= 2 -> {
-                        val value = unescape(token.removeSurrounding("'"))
+                    isQuotedString(token) -> {
+                        val value = extractString(token)
                         if (currentKey != null) {
                             result[currentKey] = value
                             currentKey = null
