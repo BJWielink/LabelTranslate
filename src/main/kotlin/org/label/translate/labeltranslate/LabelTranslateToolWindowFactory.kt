@@ -1,6 +1,5 @@
 package org.label.translate.labeltranslate
 
-import com.google.gson.JsonParser
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.ComboBox
@@ -13,12 +12,6 @@ import com.intellij.ui.components.JBCheckBox
 import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.content.ContentFactory
 import com.intellij.ui.table.JBTable
-import okhttp3.MediaType.Companion.toMediaTypeOrNull
-import okhttp3.OkHttpClient
-import okhttp3.Request
-import okhttp3.RequestBody
-import okhttp3.RequestBody.Companion.toRequestBody
-import okhttp3.Response
 import java.awt.BorderLayout
 import java.awt.Dimension
 import java.awt.FlowLayout
@@ -26,7 +19,6 @@ import java.awt.event.ActionEvent
 import java.awt.event.ItemEvent
 import java.awt.event.KeyEvent
 import java.io.File
-import java.io.IOException
 import javax.swing.*
 import javax.swing.table.TableCellRenderer
 import javax.swing.table.TableModel
@@ -222,33 +214,35 @@ class LabelTranslateToolWindowContent(
             SettingsChangedNotifier.TOPIC,
             object : SettingsChangedNotifier {
                 override fun onFolderPathsChanged() {
-                    // Stale subscriptions van vervangen content-instances overslaan
-                    val selectedContent = toolWindow.contentManager.selectedContent ?: return
-                    if (selectedContent.component != contentPanel) return
+                    ApplicationManager.getApplication().invokeLater {
+                        // Stale subscriptions van vervangen content-instances overslaan
+                        val selectedContent = toolWindow.contentManager.selectedContent ?: return@invokeLater
+                        if (selectedContent.component != contentPanel) return@invokeLater
 
-                    val basePath = project.basePath
-                    val newPaths = listOf("resources/lang", "lang") + CustomFilePathConfig().folderPaths
+                        val basePath = project.basePath
+                        val newPaths = listOf("resources/lang", "lang") + CustomFilePathConfig().folderPaths
 
-                    // Bepaal een geldig pad: houd currentPath als dat nog bestaat, anders fallback
-                    val pathToLoad = if (newPaths.contains(currentPath) &&
-                        (if (File(currentPath).isAbsolute) File(currentPath) else File(basePath, currentPath)).exists()
-                    ) {
-                        currentPath
-                    } else {
-                        newPaths.firstOrNull {
-                            val f = if (File(it).isAbsolute) File(it) else File(basePath, it)
-                            f.exists()
+                        // Bepaal een geldig pad: houd currentPath als dat nog bestaat, anders fallback
+                        val pathToLoad = if (newPaths.contains(currentPath) &&
+                            (if (File(currentPath).isAbsolute) File(currentPath) else File(basePath, currentPath)).exists()
+                        ) {
+                            currentPath
+                        } else {
+                            newPaths.firstOrNull {
+                                val f = if (File(it).isAbsolute) File(it) else File(basePath, it)
+                                f.exists()
+                            }
                         }
-                    }
 
-                    if (pathToLoad == null) {
-                        JOptionPane.showMessageDialog(null, PluginI18n.t("error.no_paths"))
-                        return
-                    }
+                        if (pathToLoad == null) {
+                            JOptionPane.showMessageDialog(null, PluginI18n.t("error.no_paths"))
+                            return@invokeLater
+                        }
 
-                    currentPath = pathToLoad
-                    val selectedTabName = toolWindow.contentManager.selectedContent?.displayName
-                    reloadTranslationsForPath(currentPath, selectedTabName)
+                        currentPath = pathToLoad
+                        val selectedTabName = toolWindow.contentManager.selectedContent?.displayName
+                        reloadTranslationsForPath(currentPath, selectedTabName)
+                    }
                 }
             })
 
@@ -476,130 +470,52 @@ class LabelTranslateToolWindowContent(
         tableModel: GroupedTranslationTableModel,
         mutationObserver: MutationObserver
     ) {
-        val client = OkHttpClient()
-
-        val sourceLangUpper = sourceLang.uppercase()
-        val languages = mutableListOf<String>()
-        for (col in 0 until tableModel.columnCount) {
-            val columnName = tableModel.getColumnName(col).uppercase()
-            if (columnName != "KEY") languages.add(columnName)
-        }
+        val languages = (0 until tableModel.columnCount)
+            .map { tableModel.getColumnName(it).toUpperCase() }
+            .filter { it != "KEY" }
 
         val startsWithCapital = wordToTranslate.firstOrNull()?.isUpperCase() == true
-        val capitalizationInstruction = if (startsWithCapital)
-            "The original word starts with a capital letter, so all translations must also start with a capital letter. "
-        else
-            "The original word starts with a lowercase letter, so all translations must also start with a lowercase letter. "
 
-        val targetLanguages = languages.filter { it != sourceLangUpper }
-        val languagesJson = languages.joinToString(", ") { "\\\"$it\\\": {\\\"$key\\\": \\\"translation\\\"}" }
-        val jsonContent = """
-        Translate the \"$sourceLangUpper\" word/sentence \"$wordToTranslate\" into the following languages: ${targetLanguages.joinToString(", ")}.
-        Also return \"$sourceLangUpper\" in the response with the spelling-corrected version of the original word.
-        $capitalizationInstruction
-        Use this as a key \"$key\". Please return all languages in the following structured JSON format: {$languagesJson}
-        and only return that, not other text.
-    """.trimIndent().replace("\n", " ")
+        OpenAiService.translate(
+            key = key,
+            wordToTranslate = wordToTranslate,
+            sourceLang = sourceLang,
+            languages = languages,
+            onSuccess = { results ->
+                try {
+                    mutationObserver.addRowMutation(key)
 
-        val json = """
-        {
-            "model": "gpt-5.4-mini",
-            "messages": [
-                {"role": "system", "content": "You are a helpful assistant."},
-                {"role": "user", "content": "$jsonContent"}
-            ],
-            "max_completion_tokens": ${ApiKeyConfig().maxTokens}
-        }
-    """.trimIndent()
-
-        val requestBody: RequestBody = json.toRequestBody("application/json".toMediaTypeOrNull())
-        val request = Request.Builder()
-            .url("https://api.openai.com/v1/chat/completions")
-            .post(requestBody)
-            .addHeader("Authorization", "Bearer ${useApiKey()}")
-            .addHeader("Content-Type", "application/json")
-            .build()
-
-        client.newCall(request).enqueue(object : okhttp3.Callback {
-            override fun onFailure(call: okhttp3.Call, e: IOException) {
-                JOptionPane.showMessageDialog(null, "Error during translation: ${e.message}")
-            }
-
-            override fun onResponse(call: okhttp3.Call, response: Response) {
-                response.use {
-                    try {
-                        val responseBody = response.body?.string() ?: ""
-
-                        if (!response.isSuccessful) {
-                            JOptionPane.showMessageDialog(
-                                null,
-                                "Unexpected response code: ${response.code}\nResponse: $responseBody"
-                            )
-                            return
+                    val rowArray = arrayOfNulls<Any>(tableModel.columnCount)
+                    for (col in 0 until tableModel.columnCount) {
+                        val columnName = tableModel.getColumnName(col).toUpperCase()
+                        when {
+                            columnName == "KEY" -> rowArray[col] = key
+                            results.containsKey(columnName) -> rowArray[col] = results[columnName]
                         }
-
-                        val jsonElement = JsonParser.parseString(responseBody)
-                        val jsonObject = jsonElement.asJsonObject
-
-                        val content =
-                            jsonObject["choices"].asJsonArray[0].asJsonObject["message"].asJsonObject["content"].asString
-
-                        val cleanedContent = content.trim().removePrefix("`json").removeSuffix("`").trim()
-
-                        val parsedJson = JsonParser.parseString(cleanedContent).asJsonObject
-
-                        SwingUtilities.invokeLater {
-                            try {
-                                mutationObserver.addRowMutation(key)
-
-                                val rowArray = arrayOfNulls<Any>(tableModel.columnCount)
-
-                                for (col in 0 until tableModel.columnCount) {
-                                    val columnName = tableModel.getColumnName(col).uppercase()
-
-                                    when {
-                                        columnName == "KEY" -> rowArray[col] = key
-                                        parsedJson.has(columnName) -> {
-                                            var translation = parsedJson[columnName].asJsonObject[key].asString
-                                            if (translation.isNotEmpty()) {
-                                                translation = if (startsWithCapital)
-                                                    translation[0].uppercaseChar() + translation.substring(1)
-                                                else
-                                                    translation[0].lowercaseChar() + translation.substring(1)
-                                            }
-                                            rowArray[col] = translation
-                                        }
-                                    }
-                                }
-
-                                // Voeg de rij toe aan het gegroepeerde model met initiële waarden
-                                val valueArray = rowArray.drop(1).toTypedArray()
-                                tableModel.addDataRow(key, valueArray)
-
-                                for (i in 0 until tableModel.columnCount - 1) {
-                                    mutationObserver.addMutation(key, i, rowArray.get(i + 1) as? String ?: "")
-                                }
-
-                                val modelRow = (0 until tableModel.rowCount).firstOrNull { tableModel.getFullKey(it) == key }
-                                if (modelRow != null) {
-                                    try {
-                                        val viewRow = sorter?.convertRowIndexToView(modelRow) ?: modelRow
-                                        val cellRect = table?.getCellRect(viewRow, 0, true)
-                                        table?.scrollRectToVisible(cellRect)
-                                    } catch (_: Exception) {}
-                                }
-                            } catch (e: Exception) {
-                                JOptionPane.showMessageDialog(null, "Error updating table: ${e.message}")
-                                e.printStackTrace()
-                            }
-                        }
-                    } catch (e: Exception) {
-                        JOptionPane.showMessageDialog(null, "Error processing response: ${e.message}")
-                        e.printStackTrace()
                     }
+
+                    val valueArray = rowArray.drop(1).toTypedArray()
+                    tableModel.addDataRow(key, valueArray)
+
+                    for (i in 0 until tableModel.columnCount - 1) {
+                        mutationObserver.addMutation(key, i, rowArray[i + 1] as? String ?: "")
+                    }
+
+                    val modelRow = (0 until tableModel.rowCount).firstOrNull { tableModel.getFullKey(it) == key }
+                    if (modelRow != null) {
+                        try {
+                            val viewRow = sorter?.convertRowIndexToView(modelRow) ?: modelRow
+                            val cellRect = table?.getCellRect(viewRow, 0, true)
+                            table?.scrollRectToVisible(cellRect)
+                        } catch (_: Exception) {}
+                    }
+                } catch (e: Exception) {
+                    JOptionPane.showMessageDialog(null, "Error updating table: ${e.message}")
+                    e.printStackTrace()
                 }
-            }
-        })
+            },
+            onError = { msg -> JOptionPane.showMessageDialog(null, msg) }
+        )
     }
 
     private fun reloadTranslationsForPath(path: String, keepSelectedTab: String? = null) {
@@ -614,24 +530,26 @@ class LabelTranslateToolWindowContent(
         val loadedTranslationSets = TranslationSet.loadFromPath(basePath, translationRoot.path)
 
         if (loadedTranslationSets.isNotEmpty()) {
-            toolWindow.contentManager.removeAllContents(true)
+            ApplicationManager.getApplication().invokeLater {
+                toolWindow.contentManager.removeAllContents(true)
 
-            for (translationSet in loadedTranslationSets) {
-                val content = LabelTranslateToolWindowContent(translationSet, project, toolWindow, errorFilterActive)
-                val tab = ContentFactory.getInstance().createContent(
-                    content.contentPanel,
-                    translationSet.displayName,
-                    false
-                )
-                toolWindow.contentManager.addContent(tab)
-            }
-
-            keepSelectedTab?.let { displayName ->
-                val tabToSelect = toolWindow.contentManager.contents.find {
-                    it.displayName.equals(displayName, ignoreCase = true)
+                for (translationSet in loadedTranslationSets) {
+                    val content = LabelTranslateToolWindowContent(translationSet, project, toolWindow, errorFilterActive)
+                    val tab = ContentFactory.getInstance().createContent(
+                        content.contentPanel,
+                        translationSet.displayName,
+                        false
+                    )
+                    toolWindow.contentManager.addContent(tab)
                 }
-                if (tabToSelect != null) {
-                    toolWindow.contentManager.setSelectedContent(tabToSelect)
+
+                keepSelectedTab?.let { displayName ->
+                    val tabToSelect = toolWindow.contentManager.contents.find {
+                        it.displayName.equals(displayName, ignoreCase = true)
+                    }
+                    if (tabToSelect != null) {
+                        toolWindow.contentManager.setSelectedContent(tabToSelect)
+                    }
                 }
             }
         } else {
