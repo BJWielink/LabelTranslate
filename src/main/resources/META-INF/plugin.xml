@@ -36,9 +36,18 @@
          Read more: https://plugins.jetbrains.com/docs/intellij/plugin-extension-points.html -->
     <extensions defaultExtensionNs="com.intellij">
         <toolWindow factoryClass="org.label.translate.labeltranslate.LabelTranslateToolWindowFactory" id="Label translate" anchor="right" icon="/icons/pluginIcon.svg" />
-z
+
         <!-- Registering the settings configurable -->
         <projectConfigurable instance="org.label.translate.labeltranslate.LabelTranslateSettingsConfigurable" />
     </extensions>
+
+    <actions>
+        <action id="LabelTranslate.EditLabel"
+                class="org.label.translate.labeltranslate.EditLabelAction"
+                text="Edit Label"
+                description="Edit this translation label across all languages">
+            <add-to-group group-id="EditorPopupMenu" anchor="first"/>
+        </action>
+    </actions>
     <!-- change-notes worden automatisch ingevuld door de Gradle changelog plugin vanuit CHANGELOG.md -->
 </idea-plugin>

@@ -7,8 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Coming soon
+## [2.1.0] - 2026-04-03
+
+### Added
 - **Blade file integration** — right-click on a `__()`, `@lang()` or similar translation helper in a Blade file to create or edit the corresponding translation label directly from the editor, without switching to the translation tool window
+
+### Fixed
+- **PhpStorm 2026.1 compatibility** — resolved "Access is allowed from write thread only" errors caused by stricter threading enforcement in IntelliJ Platform 2024.3+; content manager operations are now correctly dispatched via `invokeLater`, and VFS refresh after save is now asynchronous
 
 ## [2.0.3] - 2026-03-27
 

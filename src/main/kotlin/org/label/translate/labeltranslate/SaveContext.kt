@@ -1,5 +1,6 @@
 package org.label.translate.labeltranslate
 
+import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.vfs.LocalFileSystem
 import java.io.File
 
@@ -65,7 +66,9 @@ class SaveContext(private val translationSet: TranslationSet, private val mutati
         }
 
 
-        LocalFileSystem.getInstance().refreshIoFiles(listOf(translationFile))
+        ApplicationManager.getApplication().invokeLater {
+            LocalFileSystem.getInstance().refreshIoFiles(listOf(translationFile))
+        }
     }
 
     private fun unflattenMap(flatMap: Map<String, String>): Map<String, Any> {
