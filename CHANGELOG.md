@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.2.0] - 2026-04-20
+
+### Added
+- **Angular translate pipe completion** — auto-completes translation keys in HTML templates when typing inside a string followed by `| translate` (or your configured pipe name); uses substring matching so partial key fragments work across group and key parts
+- **HTML file support for "Edit Label"** — right-click on a translation key in any `.html` / `.htm` file (Angular `'key' | translate` syntax) to edit the label directly from the editor, identical to the existing Blade integration
+- **Configurable translate pipe name** — the Angular pipe name used for completion and editor integration is now configurable in Settings (default: `translate`)
+
+### Fixed
+- **Capitalisation in auto-translation** — OpenAI now only capitalises the very first character of a translation instead of applying Title Case to every word
+
 ## [2.1.0] - 2026-04-03
 
 ### Added

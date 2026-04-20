@@ -36,10 +36,9 @@ object OpenAiService {
 
         val startsWithCapital = wordToTranslate.firstOrNull()?.isUpperCase() == true
         val capitalizationInstruction = if (startsWithCapital)
-            "The original word starts with a capital letter, so all translations must also start with a capital letter. "
+            "Ensure ONLY the very first character of the translation is uppercase. Do not use Title Case for every word."
         else
-            "The original word starts with a lowercase letter, so all translations must also start with a lowercase letter. "
-
+            "Ensure the translation starts with a lowercase letter."
         val targetLanguages = langsUpper.filter { it != sourceLangUpper }
         val languagesJson = langsUpper.joinToString(", ") { "\\\"$it\\\": {\\\"$key\\\": \\\"translation\\\"}" }
         val jsonContent = """
