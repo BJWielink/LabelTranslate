@@ -39,6 +39,10 @@
 
         <!-- Registering the settings configurable -->
         <projectConfigurable instance="org.label.translate.labeltranslate.LabelTranslateSettingsConfigurable" />
+
+        <!-- Angular | translate pipe completion in HTML templates -->
+        <completion.contributor language="any"
+            implementationClass="org.label.translate.labeltranslate.AngularTranslateCompletionContributor"/>
     </extensions>
 
     <actions>

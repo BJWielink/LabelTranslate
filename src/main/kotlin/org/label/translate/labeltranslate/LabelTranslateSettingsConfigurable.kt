@@ -19,12 +19,15 @@ class LabelTranslateSettingsConfigurable : Configurable {
     private lateinit var removeFolderButton: JButton
     private lateinit var separatorField: JTextField
     private lateinit var separatorConfig: SeparatorConfig
+    private lateinit var pipeNameField: JTextField
+    private lateinit var pipeNameConfig: TranslatePipeConfig
 
     override fun createComponent(): JComponent {
         apiKeyConfig = ApiKeyConfig()
         defaultLanguage = DefaultLanguage()
         customFilePathConfig = CustomFilePathConfig()
         separatorConfig = SeparatorConfig()
+        pipeNameConfig = TranslatePipeConfig()
 
         val mainPanel = JPanel()
         mainPanel.layout = BoxLayout(mainPanel, BoxLayout.Y_AXIS)
@@ -37,6 +40,8 @@ class LabelTranslateSettingsConfigurable : Configurable {
         mainPanel.add(createLanguageDropdownSection())
         mainPanel.add(Box.createRigidArea(java.awt.Dimension(0, 20)))
         mainPanel.add(createSeparatorSection())
+        mainPanel.add(Box.createRigidArea(java.awt.Dimension(0, 20)))
+        mainPanel.add(createPipeNameSection())
         mainPanel.add(Box.createRigidArea(java.awt.Dimension(0, 20)))
         mainPanel.add(createCustomFolderSection())
 
@@ -110,6 +115,20 @@ class LabelTranslateSettingsConfigurable : Configurable {
         return separatorPanel
     }
 
+    private fun createPipeNameSection(): JPanel {
+        val pipePanel = JPanel()
+        pipePanel.layout = BoxLayout(pipePanel, BoxLayout.Y_AXIS)
+        pipePanel.add(JLabel("Angular Translate Pipe Name:"))
+
+        pipeNameField = JTextField(pipeNameConfig.pipeName, 20)
+        pipeNameField.minimumSize = java.awt.Dimension(400, 40)
+        pipeNameField.maximumSize = java.awt.Dimension(400, 40)
+        pipePanel.add(pipeNameField)
+
+        pipePanel.alignmentX = Component.LEFT_ALIGNMENT
+        return pipePanel
+    }
+
     private fun createCustomFolderSection(): JPanel {
         val folderPanel = JPanel()
         folderPanel.layout = BoxLayout(folderPanel, BoxLayout.Y_AXIS)
@@ -159,6 +178,7 @@ class LabelTranslateSettingsConfigurable : Configurable {
                 tokenField.text != apiKeyConfig.maxTokens ||
                 languageComboBox.selectedItem.toString().substringBefore(" -") != defaultLanguage.defaultLanguage ||
                 separatorField.text != separatorConfig.separator ||
+                pipeNameField.text != pipeNameConfig.pipeName ||
                 !customFilePathConfig.folderPaths.containsAll(folderListModel.elements().toList()) ||
                 !folderListModel.elements().toList().containsAll(customFilePathConfig.folderPaths)
     }
@@ -168,6 +188,7 @@ class LabelTranslateSettingsConfigurable : Configurable {
         apiKeyConfig.maxTokens = tokenField.text
         defaultLanguage.defaultLanguage = languageComboBox.selectedItem.toString().substringBefore(" -")
         separatorConfig.separator = separatorField.text.ifBlank { "->" }
+        pipeNameConfig.pipeName = pipeNameField.text.ifBlank { "translate" }
         customFilePathConfig.folderPaths = folderListModel.elements().toList()
 
         val bus = com.intellij.openapi.application.ApplicationManager.getApplication().messageBus
@@ -182,6 +203,7 @@ class LabelTranslateSettingsConfigurable : Configurable {
         languageComboBox.selectedItem = defaultOption
 
         separatorField.text = separatorConfig.separator
+        pipeNameField.text = pipeNameConfig.pipeName
         folderListModel.clear()
         customFilePathConfig.folderPaths.forEach { folderListModel.addElement(it) }
     }

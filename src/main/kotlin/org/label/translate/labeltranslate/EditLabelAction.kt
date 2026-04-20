@@ -13,7 +13,13 @@ class EditLabelAction : AnAction("Edit Label") {
 
     companion object {
         // Matches __('key'), __("key"), trans('key'), trans("key"), @lang('key'), @lang("key")
-        private val TRANSLATION_REGEX = Regex("""(?:__\s*\(\s*|trans\s*\(\s*|@lang\s*\(\s*)['"]([^'"]+)['"]""")
+        private val BLADE_TRANSLATION_REGEX = Regex("""(?:__\s*\(\s*|trans\s*\(\s*|@lang\s*\(\s*)['"]([^'"]+)['"]""")
+
+        // Matches 'key' | <pipe> and "key" | <pipe>, using the pipe name from settings
+        private fun angularTranslateRegex(): Regex {
+            val pipe = Regex.escape(TranslatePipeConfig().pipeName)
+            return Regex("""['"]([^'"]+)['"]\s*\|\s*$pipe\b""", RegexOption.IGNORE_CASE)
+        }
     }
 
     override fun getActionUpdateThread(): ActionUpdateThread = ActionUpdateThread.BGT
@@ -22,9 +28,11 @@ class EditLabelAction : AnAction("Edit Label") {
         val editor = e.getData(CommonDataKeys.EDITOR)
         val virtualFile = e.getData(CommonDataKeys.VIRTUAL_FILE)
 
-        val isBladeFile = virtualFile?.name?.endsWith(".blade.php") == true
+        val isSupportedFile = virtualFile?.name?.endsWith(".blade.php") == true
+            || virtualFile?.extension?.toLowerCase() == "html"
+            || virtualFile?.extension?.toLowerCase() == "htm"
 
-        if (!isBladeFile || editor == null) {
+        if (!isSupportedFile || editor == null) {
             e.presentation.isEnabledAndVisible = false
             return
         }
@@ -70,9 +78,11 @@ class EditLabelAction : AnAction("Edit Label") {
 
         val cursorColumn = caretOffset - lineStart
 
-        for (match in TRANSLATION_REGEX.findAll(lineText)) {
-            if (cursorColumn >= match.range.first && cursorColumn <= match.range.last + 1) {
-                return match.groupValues[1]
+        for (regex in listOf(BLADE_TRANSLATION_REGEX, angularTranslateRegex())) {
+            for (match in regex.findAll(lineText)) {
+                if (cursorColumn >= match.range.first && cursorColumn <= match.range.last + 1) {
+                    return match.groupValues[1]
+                }
             }
         }
 

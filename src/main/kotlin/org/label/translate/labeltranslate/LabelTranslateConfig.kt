@@ -62,3 +62,12 @@ class SeparatorConfig {
             properties.setValue("label_translate.separator", value)
         }
 }
+
+class TranslatePipeConfig {
+    private val properties = PropertiesComponent.getInstance()
+    var pipeName: String
+        get() = properties.getValue("label_translate.pipe_name", "translate")
+        set(value) {
+            properties.setValue("label_translate.pipe_name", value)
+        }
+}
